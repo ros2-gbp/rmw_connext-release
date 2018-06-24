@@ -1,0 +1,12 @@
+Source: ros-bouncy-rmw-connext-shared-cpp
+Section: misc
+Priority: extra
+Maintainer: Jackie Kay <jackie@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), ros-bouncy-ament-cmake, ros-bouncy-ament-lint-auto, ros-bouncy-ament-lint-common, ros-bouncy-connext-cmake-module, ros-bouncy-rcutils, ros-bouncy-rmw, ros-bouncy-rosidl-cmake, rti-connext-dds-5.3.1, ros-bouncy-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-bouncy-rmw-connext-shared-cpp
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-bouncy-ament-cmake, ros-bouncy-connext-cmake-module, rti-connext-dds-5.3.1, ros-bouncy-ros-workspace
+Description: C++ types and functions shared by the ROS middleware interface to RTI Connext Static and RTI Connext Dynamic.
