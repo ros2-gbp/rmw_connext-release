@@ -1,0 +1,12 @@
+Source: ros-bouncy-rmw-connext-dynamic-cpp
+Section: misc
+Priority: extra
+Maintainer: Dirk Thomas <dthomas@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), ros-bouncy-ament-cmake, ros-bouncy-ament-lint-auto, ros-bouncy-ament-lint-common, ros-bouncy-connext-cmake-module, ros-bouncy-rcutils, ros-bouncy-rmw, ros-bouncy-rmw-connext-shared-cpp, ros-bouncy-rosidl-generator-c, ros-bouncy-rosidl-generator-cpp, ros-bouncy-rosidl-typesupport-introspection-c, ros-bouncy-rosidl-typesupport-introspection-cpp, rti-connext-dds-5.3.1, ros-bouncy-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-bouncy-rmw-connext-dynamic-cpp
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-bouncy-connext-cmake-module, ros-bouncy-rcutils, ros-bouncy-rmw, ros-bouncy-rmw-connext-shared-cpp, ros-bouncy-rosidl-generator-c, ros-bouncy-rosidl-generator-cpp, ros-bouncy-rosidl-typesupport-introspection-c, ros-bouncy-rosidl-typesupport-introspection-cpp, rti-connext-dds-5.3.1, ros-bouncy-ros-workspace
+Description: Implement the ROS middleware interface using RTI Connext DynammicData interface in C++.
