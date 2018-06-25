@@ -1,1 +1,1 @@
-{"parent": "debian/bouncy/rmw_connext_shared_cpp", "base": "3807070", "trimbase": "", "trim": "", "previous": "c5b938d"}
+{"base": "b7c760d", "previous": "ff0e2c2", "parent": "debian/bouncy/rmw_connext_shared_cpp", "trimbase": "", "trim": ""}
