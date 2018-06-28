@@ -1,4 +1,4 @@
-From c5b938d911615eb40d1fbde44e37a94ebea11e07 Mon Sep 17 00:00:00 2001
+From 8e5c6fb0fe293fa68a5bcac59b0f4923b1ef4ba5 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Steven!=20Ragnar=C3=B6k?= <steven@nuclearsandwich.com>
 Date: Sun, 24 Jun 2018 12:52:19 -0700
 Subject: [PATCH 1/2] Source RTI environment script for connext dds.
@@ -56,5 +56,5 @@ index 9c9604d..d393083 100755
  	if [ -f "@(InstallationPrefix)/setup.sh" ]; then . "@(InstallationPrefix)/setup.sh"; fi && \
  	dh_auto_install
 -- 
-2.7.4
+2.17.1
 
