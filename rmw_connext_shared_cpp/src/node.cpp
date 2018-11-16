@@ -55,21 +55,21 @@ create_node(
   participant_qos.participant_name.name = DDS::String_dup(name);
   // since the participant name is not part of the DDS spec
   // the node name is also set in the user_data
-  DDS_Long name_length = static_cast<DDS_Long>(strlen(name));
-  const char prefix[6] = "name=";
-  bool success = participant_qos.user_data.value.length(name_length + sizeof(prefix));
+  size_t length = strlen(name) + strlen("name=;") +
+    strlen(namespace_) + strlen("namespace=;") + 1;
+  bool success = participant_qos.user_data.value.length(static_cast<DDS_Long>(length));
   if (!success) {
     RMW_SET_ERROR_MSG("failed to resize participant user_data");
     return NULL;
   }
-  memcpy(participant_qos.user_data.value.get_contiguous_buffer(), prefix, sizeof(prefix) - 1);
-  {
-    for (DDS_Long i = 0; i < name_length; ++i) {
-      participant_qos.user_data.value[sizeof(prefix) - 1 + i] = name[i];
-    }
-    participant_qos.user_data.value[sizeof(prefix) - 1 + name_length] = ';';
-  }
 
+  int written =
+    snprintf(reinterpret_cast<char *>(participant_qos.user_data.value.get_contiguous_buffer()),
+      length, "name=%s;namespace=%s;", name, namespace_);
+  if (written < 0 || written > static_cast<int>(length) - 1) {
+    RMW_SET_ERROR_MSG("failed to populate user_data buffer");
+    return NULL;
+  }
 
   // Accorinrding to the RTPS spec, ContentFilterProperty_t has the following fields:
   // -contentFilteredTopicName (max length 256)
@@ -124,7 +124,8 @@ create_node(
   rcutils_allocator_t allocator = rcutils_get_default_allocator();
 
   const char * srp = nullptr;
-  char * ca_cert_fn = nullptr;
+  char * identity_ca_cert_fn = nullptr;
+  char * permissions_ca_cert_fn = nullptr;
   char * cert_fn = nullptr;
   char * key_fn = nullptr;
   char * gov_fn = nullptr;
@@ -161,9 +162,14 @@ create_node(
     }
 
     srp = security_options->security_root_path;  // save some typing
-    ca_cert_fn = rcutils_join_path(srp, "ca.cert.pem", allocator);
-    if (!ca_cert_fn) {
-      RMW_SET_ERROR_MSG("failed to allocate memory for 'ca_cert_fn'");
+    identity_ca_cert_fn = rcutils_join_path(srp, "identity_ca.cert.pem", allocator);
+    if (!identity_ca_cert_fn) {
+      RMW_SET_ERROR_MSG("failed to allocate memory for 'identity_ca_cert_fn'");
+      goto fail;
+    }
+    permissions_ca_cert_fn = rcutils_join_path(srp, "permissions_ca.cert.pem", allocator);
+    if (!permissions_ca_cert_fn) {
+      RMW_SET_ERROR_MSG("failed to allocate memory for 'permissions_ca_cert_fn'");
       goto fail;
     }
     cert_fn = rcutils_join_path(srp, "cert.pem", allocator);
@@ -191,7 +197,7 @@ create_node(
     status = DDSPropertyQosPolicyHelper::add_property(
       participant_qos.property,
       "com.rti.serv.secure.authentication.ca_file",
-      ca_cert_fn,
+      identity_ca_cert_fn,
       DDS_BOOLEAN_FALSE);
     if (status != DDS_RETCODE_OK) {
       RMW_SET_ERROR_MSG("failed to add security property");
@@ -220,7 +226,7 @@ create_node(
     status = DDSPropertyQosPolicyHelper::add_property(
       participant_qos.property,
       "com.rti.serv.secure.access_control.permissions_authority_file",
-      ca_cert_fn,
+      permissions_ca_cert_fn,
       DDS_BOOLEAN_FALSE);
     if (status != DDS_RETCODE_OK) {
       RMW_SET_ERROR_MSG("failed to add security property");
@@ -392,7 +398,8 @@ fail:
     rmw_free(buf);
   }
   // Note: allocator.deallocate(nullptr, ...); is allowed.
-  allocator.deallocate(ca_cert_fn, allocator.state);
+  allocator.deallocate(identity_ca_cert_fn, allocator.state);
+  allocator.deallocate(permissions_ca_cert_fn, allocator.state);
   allocator.deallocate(cert_fn, allocator.state);
   allocator.deallocate(key_fn, allocator.state);
   allocator.deallocate(gov_fn, allocator.state);

@@ -55,7 +55,7 @@
 #include "rmw/rmw.h"
 #include "rmw/types.h"
 
-#include "rosidl_generator_c/primitives_array_functions.h"
+#include "rosidl_generator_c/primitives_sequence_functions.h"
 #include "rosidl_generator_c/string.h"
 #include "rosidl_generator_c/string_functions.h"
 
@@ -130,6 +130,8 @@ extern "C"
 {
 ROSIDL_TYPESUPPORT_INTROSPECTION_CPP_EXPORT
 const char * rti_connext_dynamic_identifier = "rmw_connext_dynamic_cpp";
+ROSIDL_TYPESUPPORT_INTROSPECTION_CPP_EXPORT
+const char * rti_connext_dynamic_serialization_format = "cdr";
 
 struct CustomPublisherInfo
 {
@@ -191,6 +193,12 @@ const char *
 rmw_get_implementation_identifier()
 {
   return rti_connext_dynamic_identifier;
+}
+
+const char *
+rmw_get_serialization_format()
+{
+  return rti_connext_dynamic_serialization_format;
 }
 
 rmw_ret_t
@@ -364,7 +372,7 @@ rmw_create_publisher(
   // partition operater takes ownership of it.
   printf("Original publisher topic name: %s\n", topic_name);
   if (rcutils_split_last(topic_name, '/', allocator, &name_tokens) != RCUTILS_RET_OK) {
-    RMW_SET_ERROR_MSG(rcutils_get_error_string_safe())
+    RMW_SET_ERROR_MSG(rcutils_get_error_string().str)
     goto fail;
   }
   partition_str = NULL;
@@ -563,7 +571,7 @@ fail:
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
       ss.clear();
-      ss << "  error: " << rmw_get_error_string_safe() << '\n';
+      ss << "  error: " << rmw_get_error_string().str << '\n';
       (std::cerr << ss.str()).flush();
     }
   }
@@ -1049,7 +1057,7 @@ fail:
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
       ss.clear();
-      ss << "  error: " << rmw_get_error_string_safe() << '\n';
+      ss << "  error: " << rmw_get_error_string().str << '\n';
       (std::cerr << ss.str()).flush();
     }
   }
@@ -1330,6 +1338,7 @@ rmw_take_serialized_message_with_info(
   (void) subscription;
   (void) serialized_message;
   (void) taken;
+  (void) message_info;
 
   RMW_SET_ERROR_MSG(
     "rmw_take_serialized_message_with_info is not implemented for rmw_connext_dynamic_cpp");
@@ -1643,7 +1652,7 @@ fail:
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
       ss.clear();
-      ss << "  error: " << rmw_get_error_string_safe() << '\n';
+      ss << "  error: " << rmw_get_error_string().str << '\n';
       (std::cerr << ss.str()).flush();
     }
   }
@@ -1659,7 +1668,7 @@ fail:
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
       ss.clear();
-      ss << "  error: " << rmw_get_error_string_safe() << '\n';
+      ss << "  error: " << rmw_get_error_string().str << '\n';
       (std::cerr << ss.str()).flush();
     }
   }
@@ -2029,7 +2038,7 @@ fail:
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
       ss.clear();
-      ss << "  error: " << rmw_get_error_string_safe() << '\n';
+      ss << "  error: " << rmw_get_error_string().str << '\n';
       (std::cerr << ss.str()).flush();
     }
   }
@@ -2045,7 +2054,7 @@ fail:
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
       ss.clear();
-      ss << "  error: " << rmw_get_error_string_safe() << '\n';
+      ss << "  error: " << rmw_get_error_string().str << '\n';
       (std::cerr << ss.str()).flush();
     }
   }
