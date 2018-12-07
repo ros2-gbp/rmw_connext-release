@@ -17,7 +17,10 @@ endif()
 find_package(ament_cmake REQUIRED)
 
 find_package(connext_cmake_module REQUIRED)
-find_package(Connext MODULE)
+find_package(Connext QUIET MODULE)
+if(Connext_FOUND)
+  find_package(Connext MODULE)
+endif()
 if(NOT Connext_FOUND OR CONNEXT_STATIC_DISABLE)
   ament_package()
   if(NOT Connext_FOUND)
@@ -139,6 +142,7 @@ add_library(
   src/rmw_init.cpp
   src/rmw_logging.cpp
   src/rmw_node.cpp
+  src/rmw_node_info_and_types.cpp
   src/rmw_node_names.cpp
   src/rmw_publish.cpp
   src/rmw_publisher.cpp

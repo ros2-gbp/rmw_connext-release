@@ -13,7 +13,10 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(connext_cmake_module REQUIRED)
-find_package(Connext MODULE)
+find_package(Connext QUIET MODULE)
+if(Connext_FOUND)
+  find_package(Connext MODULE)
+endif()
 if(NOT Connext_FOUND)
   ament_package()
   message(WARNING "Could not find RTI Connext - skipping '${PROJECT_NAME}'")
@@ -42,6 +45,8 @@ add_library(
   src/node.cpp
   src/node_names.cpp
   src/qos.cpp
+  src/names_and_types_helpers.cpp
+  src/node_info_and_types.cpp
   src/service_names_and_types.cpp
   src/topic_names_and_types.cpp
   src/trigger_guard_condition.cpp
