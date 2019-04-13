@@ -20,18 +20,23 @@
 // Uncomment this to get extra console output about discovery.
 // #define DISCOVERY_DEBUG_LOGGING 1
 
-void CustomPublisherListener::on_data_available(DDSDataReader * reader)
+void CustomPublisherListener::on_data_available(DDS::DataReader * reader)
 {
-  DDSPublicationBuiltinTopicDataDataReader * builtin_reader =
-    static_cast<DDSPublicationBuiltinTopicDataDataReader *>(reader);
+  DDS::PublicationBuiltinTopicDataDataReader * builtin_reader =
+    DDS::PublicationBuiltinTopicDataDataReader::narrow(reader);
 
-  DDS_PublicationBuiltinTopicDataSeq data_seq;
-  DDS_SampleInfoSeq info_seq;
-  DDS_ReturnCode_t retcode = builtin_reader->take(
-    data_seq, info_seq, DDS_LENGTH_UNLIMITED,
-    DDS_ANY_SAMPLE_STATE, DDS_ANY_VIEW_STATE, DDS_ANY_INSTANCE_STATE);
+  if (!builtin_reader) {
+    fprintf(stderr, "failed to narrow to DDS::PublicationBuiltinTopicDataDataReader\n");
+    return;
+  }
 
-  if (retcode == DDS_RETCODE_NO_DATA) {
+  DDS::PublicationBuiltinTopicDataSeq data_seq;
+  DDS::SampleInfoSeq info_seq;
+  DDS::ReturnCode_t retcode = builtin_reader->take(
+    data_seq, info_seq, DDS::LENGTH_UNLIMITED,
+    DDS::ANY_SAMPLE_STATE, DDS::ANY_VIEW_STATE, DDS::ANY_INSTANCE_STATE);
+
+  if (retcode == DDS::RETCODE_NO_DATA) {
     return;
   }
   if (retcode != DDS_RETCODE_OK) {
@@ -40,12 +45,12 @@ void CustomPublisherListener::on_data_available(DDSDataReader * reader)
   }
 
   for (auto i = 0; i < data_seq.length(); ++i) {
-    DDS_GUID_t guid;
+    DDS::GUID_t guid;
     DDS_InstanceHandle_to_GUID(&guid, info_seq[i].instance_handle);
     if (info_seq[i].valid_data &&
-      info_seq[i].instance_state == DDS_InstanceStateKind::DDS_ALIVE_INSTANCE_STATE)
+      info_seq[i].instance_state == DDS::ALIVE_INSTANCE_STATE)
     {
-      DDS_GUID_t participant_guid;
+      DDS::GUID_t participant_guid;
       DDS_BuiltinTopicKey_to_GUID(&participant_guid, data_seq[i].participant_key);
       add_information(
         participant_guid,

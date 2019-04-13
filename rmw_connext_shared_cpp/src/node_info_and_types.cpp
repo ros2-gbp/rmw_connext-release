@@ -52,7 +52,7 @@
  */
 bool
 __is_node_match(
-  DDS_UserDataQosPolicy & user_data_qos,
+  DDS::UserDataQosPolicy & user_data_qos,
   const char * node_name,
   const char * node_namespace)
 {
@@ -66,7 +66,7 @@ __is_node_match(
     if (name_found != map.end() && ns_found != map.end()) {
       std::string name(name_found->second.begin(), name_found->second.end());
       std::string ns(ns_found->second.begin(), ns_found->second.end());
-      return strcmp(node_name, name.c_str()) == 0 && strcmp(node_namespace, ns.c_str()) == 0;
+      return (name == node_name) && (ns == node_namespace);
     }
   }
   return false;
@@ -88,28 +88,28 @@ __get_key(
   ConnextNodeInfo * node_info,
   const char * node_name,
   const char * node_namespace,
-  DDS_GUID_t & key)
+  DDS::GUID_t & key)
 {
   auto participant = node_info->participant;
   RMW_CHECK_FOR_NULL_WITH_MSG(participant, "participant handle is null", return RMW_RET_ERROR);
 
-  DDS_DomainParticipantQos dpqos;
+  DDS::DomainParticipantQos dpqos;
   auto dds_ret = participant->get_qos(dpqos);
-  if (dds_ret == DDS_RETCODE_OK && __is_node_match(dpqos.user_data, node_name, node_namespace)) {
+  if (dds_ret == DDS::RETCODE_OK && __is_node_match(dpqos.user_data, node_name, node_namespace)) {
     DDS_InstanceHandle_to_GUID(&key, participant->get_instance_handle());
     return RMW_RET_OK;
   }
 
-  DDS_InstanceHandleSeq handles;
-  if (participant->get_discovered_participants(handles) != DDS_RETCODE_OK) {
+  DDS::InstanceHandleSeq handles;
+  if (participant->get_discovered_participants(handles) != DDS::RETCODE_OK) {
     RMW_SET_ERROR_MSG("unable to fetch discovered participants.");
     return RMW_RET_ERROR;
   }
 
-  for (DDS_Long i = 0; i < handles.length(); ++i) {
-    DDS_ParticipantBuiltinTopicData pbtd;
+  for (DDS::Long i = 0; i < handles.length(); ++i) {
+    DDS::ParticipantBuiltinTopicData pbtd;
     auto dds_ret = participant->get_discovered_participant_data(pbtd, handles[i]);
-    if (dds_ret == DDS_RETCODE_OK) {
+    if (dds_ret == DDS::RETCODE_OK) {
       uint8_t * buf = pbtd.user_data.value.get_contiguous_buffer();
       if (buf) {
         std::vector<uint8_t> kv(buf, buf + pbtd.user_data.value.length());
@@ -120,9 +120,7 @@ __get_key(
         if (name_found != map.end() && ns_found != map.end()) {
           std::string name(name_found->second.begin(), name_found->second.end());
           std::string ns(ns_found->second.begin(), ns_found->second.end());
-          if (strcmp(node_name, name.c_str()) == 0 &&
-            strcmp(node_namespace, ns.c_str()) == 0)
-          {
+          if ((name == node_name) && (ns == node_namespace)) {
             DDS_BuiltinTopicKey_to_GUID(&key, pbtd.key);
             return RMW_RET_OK;
           }
@@ -187,7 +185,7 @@ get_subscriber_names_and_types_by_node(
     return RMW_RET_ERROR;
   }
 
-  DDS_GUID_t key;
+  DDS::GUID_t key;
   auto get_guid_err = __get_key(node_info, node_name, node_namespace, key);
   if (get_guid_err != RMW_RET_OK) {
     return get_guid_err;
@@ -197,13 +195,7 @@ get_subscriber_names_and_types_by_node(
   std::map<std::string, std::set<std::string>> topics;
   node_info->subscriber_listener->fill_topic_names_and_types_by_guid(no_demangle, topics, key);
 
-  rmw_ret_t rmw_ret;
-  rmw_ret = copy_topics_names_and_types(topics, allocator, no_demangle, topic_names_and_types);
-  if (rmw_ret != RMW_RET_OK) {
-    return rmw_ret;
-  }
-
-  return RMW_RET_OK;
+  return copy_topics_names_and_types(topics, allocator, no_demangle, topic_names_and_types);
 }
 
 rmw_ret_t
@@ -240,7 +232,7 @@ get_publisher_names_and_types_by_node(
     return RMW_RET_ERROR;
   }
 
-  DDS_GUID_t key;
+  DDS::GUID_t key;
   auto get_guid_err = __get_key(node_info, node_name, node_namespace, key);
   if (get_guid_err != RMW_RET_OK) {
     return get_guid_err;
@@ -250,13 +242,7 @@ get_publisher_names_and_types_by_node(
   std::map<std::string, std::set<std::string>> topics;
   node_info->publisher_listener->fill_topic_names_and_types_by_guid(no_demangle, topics, key);
 
-  rmw_ret_t rmw_ret;
-  rmw_ret = copy_topics_names_and_types(topics, allocator, no_demangle, topic_names_and_types);
-  if (rmw_ret != RMW_RET_OK) {
-    return rmw_ret;
-  }
-
-  return RMW_RET_OK;
+  return copy_topics_names_and_types(topics, allocator, no_demangle, topic_names_and_types);
 }
 
 rmw_ret_t
@@ -288,7 +274,7 @@ get_service_names_and_types_by_node(
     return RMW_RET_ERROR;
   }
 
-  DDS_GUID_t key;
+  DDS::GUID_t key;
   auto get_guid_err = __get_key(node_info, node_name, node_namespace, key);
   if (get_guid_err != RMW_RET_OK) {
     return get_guid_err;
@@ -298,8 +284,8 @@ get_service_names_and_types_by_node(
   std::map<std::string, std::set<std::string>> services;
   node_info->subscriber_listener->fill_service_names_and_types_by_guid(services, key);
 
-  rmw_ret_t rmw_ret;
-  rmw_ret = copy_services_to_names_and_types(services, allocator, service_names_and_types);
+  rmw_ret_t rmw_ret =
+    copy_services_to_names_and_types(services, allocator, service_names_and_types);
   if (rmw_ret != RMW_RET_OK) {
     return rmw_ret;
   }

@@ -275,6 +275,20 @@ rmw_shutdown(rmw_context_t * context)
     context->implementation_identifier,
     rti_connext_dynamic_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  // Nothing to do here for now.
+  // This is just the middleware's notification that shutdown was called.
+  return RMW_RET_OK;
+}
+
+rmw_ret_t
+rmw_context_fini(rmw_context_t * context)
+{
+  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    context,
+    context->implementation_identifier,
+    rti_connext_dynamic_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   // context impl is explicitly supposed to be nullptr for now, see rmw_init's code
   // RCUTILS_CHECK_ARGUMENT_FOR_NULL(context->impl, RMW_RET_INVALID_ARGUMENT);
   *context = rmw_get_zero_initialized_context();
@@ -289,15 +303,8 @@ rmw_create_node(
   size_t domain_id,
   const rmw_node_security_options_t * security_options)
 {
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    init context,
-    context->implementation_identifier,
-    rti_connext_dynamic_identifier,
-    // TODO(wjwwood): replace this with RMW_RET_INCORRECT_RMW_IMPLEMENTATION when refactored
-    return NULL);
   return create_node(
-    rti_connext_dynamic_identifier, name, namespace_, domain_id, security_options);
+    rti_connext_dynamic_identifier, context, name, namespace_, domain_id, security_options);
 }
 
 rmw_ret_t
@@ -674,6 +681,73 @@ fail:
   }
 
   return NULL;
+}
+
+rmw_ret_t
+rmw_publisher_get_actual_qos(
+  const rmw_publisher_t * publisher,
+  rmw_qos_profile_t * qos)
+{
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
+
+  auto info = static_cast<CustomPublisherInfo *>(publisher->data);
+  if (!info) {
+    RMW_SET_ERROR_MSG("publisher internal data is invalid");
+    return RMW_RET_ERROR;
+  }
+  DDS::DataWriter * data_writer = info->data_writer_;
+  if (!data_writer) {
+    RMW_SET_ERROR_MSG("publisher internal data writer is invalid");
+    return RMW_RET_ERROR;
+  }
+  DDS::DataWriterQos dds_qos;
+  DDS::ReturnCode_t status = data_writer->get_qos(dds_qos);
+  if (DDS::RETCODE_OK != status) {
+    RMW_SET_ERROR_MSG("publisher can't get data writer qos policies");
+    return RMW_RET_ERROR;
+  }
+
+  if (!data_writer) {
+    RMW_SET_ERROR_MSG("publisher internal dds publisher is invalid");
+    return RMW_RET_ERROR;
+  }
+  switch (dds_qos.history.kind) {
+    case DDS_KEEP_LAST_HISTORY_QOS:
+      qos->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+      break;
+    case DDS_KEEP_ALL_HISTORY_QOS:
+      qos->history = RMW_QOS_POLICY_HISTORY_KEEP_ALL;
+      break;
+    default:
+      qos->history = RMW_QOS_POLICY_HISTORY_UNKNOWN;
+      break;
+  }
+  switch (dds_qos.durability.kind) {
+    case DDS_TRANSIENT_LOCAL_DURABILITY_QOS:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+      break;
+    case DDS_VOLATILE_DURABILITY_QOS:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+      break;
+    default:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_UNKNOWN;
+      break;
+  }
+  switch (dds_qos.reliability.kind) {
+    case DDS_BEST_EFFORT_RELIABILITY_QOS:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+      break;
+    case DDS_RELIABLE_RELIABILITY_QOS:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+      break;
+    default:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_UNKNOWN;
+      break;
+  }
+  qos->depth = static_cast<size_t>(dds_qos.history.depth);
+
+  return RMW_RET_OK;
 }
 
 rmw_ret_t
@@ -1471,14 +1545,7 @@ rmw_deserialize(
 rmw_guard_condition_t *
 rmw_create_guard_condition(rmw_context_t * context)
 {
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    init context,
-    context->implementation_identifier,
-    rti_connext_dynamic_identifier,
-    // TODO(wjwwood): replace this with RMW_RET_INCORRECT_RMW_IMPLEMENTATION when refactored
-    return NULL);
-  return create_guard_condition(rti_connext_dynamic_identifier);
+  return create_guard_condition(rti_connext_dynamic_identifier, context);
 }
 
 rmw_ret_t
@@ -1494,9 +1561,9 @@ rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition_handle
 }
 
 rmw_wait_set_t *
-rmw_create_wait_set(size_t max_conditions)
+rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
 {
-  return create_wait_set(rti_connext_dynamic_identifier, max_conditions);
+  return create_wait_set(rti_connext_dynamic_identifier, context, max_conditions);
 }
 
 rmw_ret_t

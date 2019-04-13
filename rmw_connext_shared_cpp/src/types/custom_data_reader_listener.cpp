@@ -30,8 +30,8 @@
 // #define DISCOVERY_DEBUG_LOGGING 1
 
 void CustomDataReaderListener::add_information(
-  const DDS_GUID_t & participant_guid,
-  const DDS_GUID_t & guid,
+  const DDS::GUID_t & participant_guid,
+  const DDS::GUID_t & guid,
   const std::string & topic_name,
   const std::string & type_name,
   EntityType entity_type)
@@ -54,7 +54,7 @@ void CustomDataReaderListener::add_information(
 }
 
 void CustomDataReaderListener::remove_information(
-  const DDS_GUID_t & guid,
+  const DDS::GUID_t & guid,
   EntityType entity_type)
 {
   (void)entity_type;
@@ -72,23 +72,23 @@ void CustomDataReaderListener::remove_information(
 }
 
 void CustomDataReaderListener::add_information(
-  const DDS_InstanceHandle_t & participant_instance_handle,
-  const DDS_InstanceHandle_t & instance_handle,
+  const DDS::InstanceHandle_t & participant_instance_handle,
+  const DDS::InstanceHandle_t & instance_handle,
   const std::string & topic_name,
   const std::string & type_name,
   EntityType entity_type)
 {
-  DDS_GUID_t guid, participant_guid;
+  DDS::GUID_t guid, participant_guid;
   DDS_InstanceHandle_to_GUID(&guid, instance_handle);
   DDS_InstanceHandle_to_GUID(&participant_guid, participant_instance_handle);
   add_information(participant_guid, guid, topic_name, type_name, entity_type);
 }
 
 void CustomDataReaderListener::remove_information(
-  const DDS_InstanceHandle_t & instance_handle,
+  const DDS::InstanceHandle_t & instance_handle,
   EntityType entity_type)
 {
-  DDS_GUID_t guid;
+  DDS::GUID_t guid;
   DDS_InstanceHandle_to_GUID(&guid, instance_handle);
   remove_information(guid, entity_type);
 }
@@ -138,12 +138,12 @@ CustomDataReaderListener::fill_service_names_and_types(
 {
   for (auto it : topic_cache.get_topic_guid_to_info()) {
     std::string service_name = _demangle_service_from_topic(it.second.name);
-    if (!service_name.length()) {
+    if (service_name.empty()) {
       // not a service
       continue;
     }
     std::string service_type = _demangle_service_type_only(it.second.type);
-    if (service_type.length()) {
+    if (!service_type.empty()) {
       services[service_name].insert(service_type);
     }
   }
@@ -152,13 +152,13 @@ CustomDataReaderListener::fill_service_names_and_types(
 void CustomDataReaderListener::fill_topic_names_and_types_by_guid(
   bool no_demangle,
   std::map<std::string, std::set<std::string>> & topic_names_to_types_by_guid,
-  DDS_GUID_t & participant_guid)
+  DDS::GUID_t & participant_guid)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   const auto & map = topic_cache.get_topic_types_by_guid(participant_guid);
-  if (map.size() == 0) {
+  if (map.empty()) {
     RCUTILS_LOG_DEBUG_NAMED(
-      "rmw_opensplice_cpp",
+      "rmw_connext_shared_cpp",
       "No topics for participant_guid");
     return;
   }
@@ -174,25 +174,25 @@ void CustomDataReaderListener::fill_topic_names_and_types_by_guid(
 
 void CustomDataReaderListener::fill_service_names_and_types_by_guid(
   std::map<std::string, std::set<std::string>> & services,
-  DDS_GUID_t & participant_guid)
+  DDS::GUID_t & participant_guid)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   const auto & map = topic_cache.get_topic_types_by_guid(participant_guid);
-  if (map.size() == 0) {
+  if (map.empty()) {
     RCUTILS_LOG_DEBUG_NAMED(
-      "rmw_opensplice_cpp",
+      "rmw_connext_shared_cpp",
       "No services for participant_guid");
     return;
   }
   for (auto & it : map) {
     std::string service_name = _demangle_service_from_topic(it.first);
-    if (!service_name.length()) {
+    if (service_name.empty()) {
       // not a service
       continue;
     }
     for (auto & itt : it.second) {
       std::string service_type = _demangle_service_type_only(itt);
-      if (service_type.length()) {
+      if (!service_type.empty()) {
         services[service_name].insert(service_type);
       }
     }
