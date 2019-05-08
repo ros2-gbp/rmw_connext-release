@@ -39,6 +39,29 @@
 
 extern "C"
 {
+rmw_ret_t
+rmw_init_publisher_allocation(
+  const rosidl_message_type_support_t * type_support,
+  const rosidl_message_bounds_t * message_bounds,
+  rmw_publisher_allocation_t * allocation)
+{
+  // Unused in current implementation.
+  (void) type_support;
+  (void) message_bounds;
+  (void) allocation;
+  RMW_SET_ERROR_MSG("unimplemented");
+  return RMW_RET_ERROR;
+}
+
+rmw_ret_t
+rmw_fini_publisher_allocation(rmw_publisher_allocation_t * allocation)
+{
+  // Unused in current implementation.
+  (void) allocation;
+  RMW_SET_ERROR_MSG("unimplemented");
+  return RMW_RET_ERROR;
+}
+
 rmw_publisher_t *
 rmw_create_publisher(
   const rmw_node_t * node,
@@ -84,7 +107,7 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("callbacks handle is null");
     return NULL;
   }
-  std::string type_name = _create_type_name(callbacks, "msg");
+  std::string type_name = _create_type_name(callbacks);
   // Past this point, a failure results in unrolling code in the goto fail block.
   DDS::TypeCode * type_code = nullptr;
   DDS::DataWriterQos datawriter_qos;
@@ -401,6 +424,29 @@ rmw_publisher_get_actual_qos(
       break;
   }
   qos->depth = static_cast<size_t>(dds_qos.history.depth);
+
+  return RMW_RET_OK;
+}
+
+rmw_ret_t
+rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
+{
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+
+  auto info = static_cast<ConnextStaticPublisherInfo *>(publisher->data);
+  if (nullptr == info) {
+    RMW_SET_ERROR_MSG("publisher internal data is invalid");
+    return RMW_RET_ERROR;
+  }
+  if (nullptr == info->topic_writer_) {
+    RMW_SET_ERROR_MSG("publisher internal datawriter is invalid");
+    return RMW_RET_ERROR;
+  }
+
+  if (info->topic_writer_->assert_liveliness() != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to assert liveliness of datawriter");
+    return RMW_RET_ERROR;
+  }
 
   return RMW_RET_OK;
 }
