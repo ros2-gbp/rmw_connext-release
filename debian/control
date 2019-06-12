@@ -1,0 +1,12 @@
+Source: ros-dashing-rmw-connext-cpp
+Section: misc
+Priority: extra
+Maintainer: Dirk Thomas <dthomas@osrfoundation.org>
+Build-Depends: debhelper (>= 9.0.0), ros-dashing-ament-cmake, ros-dashing-ament-lint-auto, ros-dashing-ament-lint-common, ros-dashing-connext-cmake-module, ros-dashing-rcutils, ros-dashing-rmw, ros-dashing-rmw-connext-shared-cpp, ros-dashing-rosidl-cmake, ros-dashing-rosidl-generator-c, ros-dashing-rosidl-generator-cpp, ros-dashing-rosidl-generator-dds-idl, ros-dashing-rosidl-typesupport-connext-c, ros-dashing-rosidl-typesupport-connext-cpp, rti-connext-dds-5.3.1, ros-dashing-ros-workspace
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-dashing-rmw-connext-cpp
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-dashing-ament-cmake, ros-dashing-connext-cmake-module, ros-dashing-rcutils, ros-dashing-rmw, ros-dashing-rmw-connext-shared-cpp, ros-dashing-rosidl-cmake, ros-dashing-rosidl-generator-c, ros-dashing-rosidl-generator-cpp, ros-dashing-rosidl-typesupport-connext-c, ros-dashing-rosidl-typesupport-connext-cpp, rti-connext-dds-5.3.1, ros-dashing-ros-workspace
+Description: Implement the ROS middleware interface using RTI Connext static code generation in C++.
