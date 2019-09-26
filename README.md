@@ -1,3 +1,31 @@
+## rmw_connext (eloquent) - 0.8.0-1
+
+The packages in the `rmw_connext` repository were released into the `eloquent` distro by running `/usr/bin/bloom-release --rosdistro eloquent rmw_connext` on `Thu, 26 Sep 2019 00:30:12 -0000`
+
+These packages were released:
+- `rmw_connext_cpp`
+- `rmw_connext_shared_cpp`
+
+These packages were explicitly ignored:
+- `rmw_connext_dynamic_cpp`
+
+Version of package(s) in repository `rmw_connext`:
+
+- upstream repository: https://github.com/ros2/rmw_connext.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `0.8.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.8.0`
+- catkin_pkg version: `0.4.13`
+- rosdep version: `0.15.2`
+- rosdistro version: `0.7.4`
+- vcstools version: `0.1.42`
+
+
 ## rmw_connext (dashing) - 0.7.3-1
 
 The packages in the `rmw_connext` repository were released into the `dashing` distro by running `/usr/bin/bloom-release --rosdistro dashing --track dashing rmw_connext` on `Wed, 12 Jun 2019 20:25:57 -0000`
