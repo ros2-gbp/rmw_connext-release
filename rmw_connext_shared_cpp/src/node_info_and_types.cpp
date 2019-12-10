@@ -131,12 +131,8 @@ __get_key(
       return RMW_RET_ERROR;
     }
   }
-  RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-    "Node name not found: ns='%s', name='%s",
-    node_namespace,
-    node_name
-  );
-  return RMW_RET_NODE_NAME_NON_EXISTENT;
+  RMW_SET_ERROR_MSG("unable to match node_name/namespace with discovered nodes.");
+  return RMW_RET_ERROR;
 }
 
 rmw_ret_t
@@ -249,16 +245,14 @@ get_publisher_names_and_types_by_node(
   return copy_topics_names_and_types(topics, allocator, no_demangle, topic_names_and_types);
 }
 
-static
 rmw_ret_t
-__get_service_names_and_types_by_node(
+get_service_names_and_types_by_node(
   const char * implementation_identifier,
   const rmw_node_t * node,
   rcutils_allocator_t * allocator,
   const char * node_name,
   const char * node_namespace,
-  rmw_names_and_types_t * service_names_and_types,
-  const char * suffix)
+  rmw_names_and_types_t * service_names_and_types)
 {
   if (!node) {
     RMW_SET_ERROR_MSG("null node handle");
@@ -288,7 +282,7 @@ __get_service_names_and_types_by_node(
 
   // combine publisher and subscriber information
   std::map<std::string, std::set<std::string>> services;
-  node_info->subscriber_listener->fill_service_names_and_types_by_guid(services, key, suffix);
+  node_info->subscriber_listener->fill_service_names_and_types_by_guid(services, key);
 
   rmw_ret_t rmw_ret =
     copy_services_to_names_and_types(services, allocator, service_names_and_types);
@@ -297,42 +291,4 @@ __get_service_names_and_types_by_node(
   }
 
   return RMW_RET_OK;
-}
-
-rmw_ret_t
-get_service_names_and_types_by_node(
-  const char * implementation_identifier,
-  const rmw_node_t * node,
-  rcutils_allocator_t * allocator,
-  const char * node_name,
-  const char * node_namespace,
-  rmw_names_and_types_t * service_names_and_types)
-{
-  return __get_service_names_and_types_by_node(
-    implementation_identifier,
-    node,
-    allocator,
-    node_name,
-    node_namespace,
-    service_names_and_types,
-    "Request");
-}
-
-rmw_ret_t
-get_client_names_and_types_by_node(
-  const char * implementation_identifier,
-  const rmw_node_t * node,
-  rcutils_allocator_t * allocator,
-  const char * node_name,
-  const char * node_namespace,
-  rmw_names_and_types_t * service_names_and_types)
-{
-  return __get_service_names_and_types_by_node(
-    implementation_identifier,
-    node,
-    allocator,
-    node_name,
-    node_namespace,
-    service_names_and_types,
-    "Reply");
-}
+}  // extern "C"
