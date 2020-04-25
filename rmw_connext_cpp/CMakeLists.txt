@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.5)
 
 project(rmw_connext_cpp)
 
-set(CONNEXT_STATIC_DISABLE $ENV{CONNEXT_STATIC_DISABLE}
+if(DEFINED ENV{CONNEXT_STATIC_DISABLE})
+  set(disable_static_connext $ENV{CONNEXT_STATIC_DISABLE})
+else()
+  set(disable_static_connext FALSE)
+endif()
+set(CONNEXT_STATIC_DISABLE ${disable_static_connext}
   CACHE BOOL "If Connext Static should be disabled.")
 
 # Default to C++14
@@ -49,8 +54,8 @@ endif()
 
 find_package(rmw REQUIRED)
 find_package(rmw_connext_shared_cpp REQUIRED)
-find_package(rosidl_generator_c REQUIRED)
-find_package(rosidl_generator_cpp REQUIRED)
+find_package(rosidl_runtime_c REQUIRED)
+find_package(rosidl_runtime_cpp REQUIRED)
 
 include_directories(include)
 
@@ -59,8 +64,8 @@ ament_export_dependencies(
   rcutils
   rmw
   rmw_connext_shared_cpp
-  rosidl_generator_c
-  rosidl_generator_cpp
+  rosidl_runtime_c
+  rosidl_runtime_cpp
   rosidl_typesupport_connext_c
   rosidl_typesupport_connext_cpp)
 
@@ -94,14 +99,33 @@ add_custom_command(
   VERBATIM
 )
 
+# determine major version of Connext
+find_file(connext_version_header "ndds_version.h"
+  PATHS ${Connext_INCLUDE_DIRS}
+  PATH_SUFFIXES "ndds"
+  NO_DEFAULT_PATH)
+if(NOT connext_version_header)
+  message(FATAL_ERROR "Failed to find 'ndds/ndds_version.h' in '${Connext_INCLUDE_DIRS}'")
+endif()
+file(STRINGS "${connext_version_header}" connext_define_major_version LIMIT_COUNT 1 REGEX "#define RTI_DDS_VERSION_MAJOR  [0-9]+")
+if("${connext_define_major_version}" STREQUAL "")
+  message(FATAL_ERROR "Failed to find '#define RTI_DDS_VERSION_MAJOR' in '${connext_version_header}'")
+endif()
+string(REGEX REPLACE ".* ([0-9]+)" "\\1" connext_major_version "${connext_define_major_version}")
+
 # patch the generate code for raw data
+if("${connext_major_version}" LESS 6)
+  set(patch_files_subdirectory "patch_files")
+else()
+  set(patch_files_subdirectory "patch_files_v6")
+endif()
 set(patch_files
-  ${CMAKE_CURRENT_SOURCE_DIR}/resources/patch_files/connext_static_serialized_data.cxx.patch
-  ${CMAKE_CURRENT_SOURCE_DIR}/resources/patch_files/connext_static_serialized_data.h.patch
-  ${CMAKE_CURRENT_SOURCE_DIR}/resources/patch_files/connext_static_serialized_dataPlugin.cxx.patch
-  ${CMAKE_CURRENT_SOURCE_DIR}/resources/patch_files/connext_static_serialized_dataPlugin.h.patch
-  ${CMAKE_CURRENT_SOURCE_DIR}/resources/patch_files/connext_static_serialized_dataSupport.cxx.patch
-  ${CMAKE_CURRENT_SOURCE_DIR}/resources/patch_files/connext_static_serialized_dataSupport.h.patch
+  ${CMAKE_CURRENT_SOURCE_DIR}/resources/${patch_files_subdirectory}/connext_static_serialized_data.cxx.patch
+  ${CMAKE_CURRENT_SOURCE_DIR}/resources/${patch_files_subdirectory}/connext_static_serialized_data.h.patch
+  ${CMAKE_CURRENT_SOURCE_DIR}/resources/${patch_files_subdirectory}/connext_static_serialized_dataPlugin.cxx.patch
+  ${CMAKE_CURRENT_SOURCE_DIR}/resources/${patch_files_subdirectory}/connext_static_serialized_dataPlugin.h.patch
+  ${CMAKE_CURRENT_SOURCE_DIR}/resources/${patch_files_subdirectory}/connext_static_serialized_dataSupport.cxx.patch
+  ${CMAKE_CURRENT_SOURCE_DIR}/resources/${patch_files_subdirectory}/connext_static_serialized_dataSupport.h.patch
 )
 set(patched_directory "${CMAKE_CURRENT_BINARY_DIR}/resources/patched")
 file(MAKE_DIRECTORY ${patched_directory})
@@ -115,7 +139,7 @@ set(patched_files
 )
 add_custom_command(
   OUTPUT ${patched_files}
-  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/bin/apply-patch.py" --input ${generated_files} --patch ${patch_files} --out ${patched_files}
+  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/bin/apply-patch.py" --input ${generated_files} --patch ${patch_files} --out ${patched_files}
   DEPENDS ${generated_files}
   COMMENT "Patching serialized type support for RTI Connext"
   VERBATIM
@@ -161,13 +185,14 @@ add_library(
   src/rmw_trigger_guard_condition.cpp
   src/rmw_wait.cpp
   src/rmw_wait_set.cpp
-  src/serialization_format.cpp)
+  src/serialization_format.cpp
+  src/rmw_get_topic_endpoint_info.cpp)
 ament_target_dependencies(rmw_connext_cpp
   "rcutils"
   "rmw"
   "rmw_connext_shared_cpp"
-  "rosidl_generator_c"
-  "rosidl_generator_cpp"
+  "rosidl_runtime_c"
+  "rosidl_runtime_cpp"
   "rosidl_typesupport_connext_c"
   "rosidl_typesupport_connext_cpp"
   "Connext")

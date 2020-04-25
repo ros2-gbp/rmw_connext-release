@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# copied from rmw_opensplice_cpp/rmw_opensplice_cpp-extras.cmake
-
 find_package(connext_cmake_module QUIET)
 find_package(Connext MODULE QUIET)
 
@@ -21,6 +19,4 @@ if(NOT Connext_FOUND)
   message(STATUS
     "Could not find RTI Connext - skipping rmw_connext_cpp")
   set(rmw_connext_cpp_FOUND FALSE)
-else()
-  list(APPEND rmw_connext_cpp_LIBRARIES ${Connext_LIBRARIES})
 endif()

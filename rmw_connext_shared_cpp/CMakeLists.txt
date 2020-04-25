@@ -11,7 +11,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_ros REQUIRED)
 find_package(connext_cmake_module REQUIRED)
 find_package(Connext QUIET MODULE)
 if(Connext_FOUND)
@@ -28,8 +28,7 @@ find_package(rmw REQUIRED)
 
 include_directories(include)
 
-ament_export_definitions(${Connext_DEFINITIONS})
-ament_export_include_directories(include ${Connext_INCLUDE_DIRS})
+ament_export_include_directories(include)
 
 ament_export_dependencies(rmw)
 
@@ -50,19 +49,21 @@ add_library(
   src/qos.cpp
   src/names_and_types_helpers.cpp
   src/node_info_and_types.cpp
+  src/security_logging.cpp
   src/service_names_and_types.cpp
   src/topic_names_and_types.cpp
   src/trigger_guard_condition.cpp
   src/wait_set.cpp
   src/types/custom_data_reader_listener.cpp
   src/types/custom_publisher_listener.cpp
-  src/types/custom_subscriber_listener.cpp)
+  src/types/custom_subscriber_listener.cpp
+  src/topic_endpoint_info.cpp)
 ament_target_dependencies(rmw_connext_shared_cpp
   "rcpputils"
   "rcutils"
   "rmw"
   "Connext")
-ament_export_libraries(rmw_connext_shared_cpp ${Connext_LIBRARIES})
+ament_export_libraries(rmw_connext_shared_cpp)
 
 if(WIN32)
   # Causes the visibility macros to use dllexport rather than dllimport
@@ -76,6 +77,7 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_cppcheck_ADDITIONAL_INCLUDE_DIRS ${rmw_INCLUDE_DIRS})
   ament_lint_auto_find_test_dependencies()
+  add_subdirectory(test)
 endif()
 
 ament_package(

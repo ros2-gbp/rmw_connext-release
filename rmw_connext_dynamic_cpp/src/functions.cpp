@@ -51,14 +51,16 @@
 #include "rmw/allocators.h"
 #include "rmw/error_handling.h"
 #include "rmw/get_service_names_and_types.h"
+#include "rmw/get_topic_endpoint_info.h"
 #include "rmw/get_topic_names_and_types.h"
 #include "rmw/init.h"
 #include "rmw/rmw.h"
+#include "rmw/topic_endpoint_info_array.h"
 #include "rmw/types.h"
 
-#include "rosidl_generator_c/primitives_sequence_functions.h"
-#include "rosidl_generator_c/string.h"
-#include "rosidl_generator_c/string_functions.h"
+#include "rosidl_runtime_c/primitives_sequence_functions.h"
+#include "rosidl_runtime_c/string.h"
+#include "rosidl_runtime_c/string_functions.h"
 
 #include "rmw/impl/cpp/macros.hpp"
 
@@ -75,6 +77,7 @@
 #include "rosidl_typesupport_introspection_c/visibility_control.h"
 
 #include "rmw_connext_shared_cpp/shared_functions.hpp"
+#include "rmw_connext_shared_cpp/topic_endpoint_info.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "./macros.hpp"
@@ -298,10 +301,12 @@ rmw_create_node(
   const char * name,
   const char * namespace_,
   size_t domain_id,
-  const rmw_node_security_options_t * security_options)
+  const rmw_security_options_t * security_options,
+  bool localhost_only)
 {
   return create_node(
-    rti_connext_dynamic_identifier, context, name, namespace_, domain_id, security_options);
+    rti_connext_dynamic_identifier, context, name, namespace_, domain_id, security_options,
+    localhost_only);
 }
 
 rmw_ret_t
@@ -417,6 +422,7 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("failed to allocate memory for publisher");
     goto fail;
   }
+  publisher->can_loan_messages = false;
 
   type_code = _create_type_code(
     type_name, type_support->data, type_support->typesupport_identifier);
@@ -681,6 +687,47 @@ fail:
 }
 
 rmw_ret_t
+rmw_publish_loaned_message(
+  const rmw_publisher_t * publisher,
+  void * ros_message,
+  rmw_publisher_allocation_t * allocation)
+{
+  (void) publisher;
+  (void) ros_message;
+  (void) allocation;
+
+  RMW_SET_ERROR_MSG("rmw_publish_loaned_message not implemented for rmw_connext_dynamic_cpp");
+  return RMW_RET_ERROR;
+}
+
+rmw_ret_t
+rmw_borrow_loaned_message(
+  const rmw_publisher_t * publisher,
+  const rosidl_message_type_support_t * type_support,
+  void ** ros_message)
+{
+  (void) publisher;
+  (void) type_support;
+  (void) ros_message;
+
+  RMW_SET_ERROR_MSG("rmw_borrow_loaned_message not implemented for rmw_connext_dynamic_cpp");
+  return RMW_RET_ERROR;
+}
+
+rmw_ret_t
+rmw_return_loaned_message_from_publisher(
+  const rmw_publisher_t * publisher,
+  void * loaned_message)
+{
+  (void) publisher;
+  (void) loaned_message;
+
+  RMW_SET_ERROR_MSG(
+    "rmw_return_loaned_message_from_publisher not implemented for rmw_connext_dynamic_cpp");
+  return RMW_RET_OK;
+}
+
+rmw_ret_t
 rmw_publisher_get_actual_qos(
   const rmw_publisher_t * publisher,
   rmw_qos_profile_t * qos)
@@ -743,6 +790,30 @@ rmw_publisher_get_actual_qos(
       break;
   }
   qos->depth = static_cast<size_t>(dds_qos.history.depth);
+
+  return RMW_RET_OK;
+}
+
+void *
+rmw_allocate_loaned_message(
+  const rmw_publisher_t * publisher,
+  const rosidl_message_type_support_t * type_support,
+  size_t message_size)
+{
+  (void) publisher;
+  (void) type_support;
+  (void) message_size;
+
+  return nullptr;
+}
+
+rmw_ret_t
+rmw_deallocate_loaned_message(
+  const rmw_publisher_t * publisher,
+  void * loaned_message)
+{
+  (void) publisher;
+  (void) loaned_message;
 
   return RMW_RET_OK;
 }
@@ -923,6 +994,20 @@ rmw_publish_serialized_message(
   RMW_SET_ERROR_MSG(
     "rmw_publish_serialized_message is not implemented for rmw_connext_dynamic_cpp");
 
+  return RMW_RET_ERROR;
+}
+
+rmw_ret_t
+rmw_publish_loaned_message(
+  const rmw_publisher_t * publisher,
+  void * ros_message,
+  rmw_publisher_allocation_t * allocation)
+{
+  (void) publisher;
+  (void) ros_message;
+  (void) allocation;
+
+  RMW_SET_ERROR_MSG("rmw_publish_loaned_message is not implemented for rmw_connext_dynamic_cpp");
   return RMW_RET_ERROR;
 }
 
@@ -1133,6 +1218,7 @@ rmw_create_subscription(
     EntityType::Subscriber);
   node_info->subscriber_listener->trigger_graph_guard_condition();
 
+  subscription->can_loan_messages = false;
   return subscription;
 fail:
   // Something has gone wrong, unroll what has been done.
@@ -1504,6 +1590,54 @@ rmw_take_serialized_message_with_info(
   RMW_SET_ERROR_MSG(
     "rmw_take_serialized_message_with_info is not implemented for rmw_connext_dynamic_cpp");
 
+  return RMW_RET_ERROR;
+}
+
+rmw_ret_t
+rmw_take_loaned_message(
+  const rmw_subscription_t * subscription,
+  void ** loaned_message,
+  bool * taken,
+  rmw_subscription_allocation_t * allocation)
+{
+  (void) subscription;
+  (void) loaned_message;
+  (void) taken;
+  (void) allocation;
+
+  RMW_SET_ERROR_MSG("rmw_take_loaned_message not implemented for rmw_connext_dynamic_cpp");
+  return RMW_RET_ERROR;
+}
+
+rmw_ret_t
+rmw_take_loaned_message_with_info(
+  const rmw_subscription_t * subscription,
+  void ** loaned_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation)
+{
+  (void) subscription;
+  (void) loaned_message;
+  (void) taken;
+  (void) message_info;
+  (void) allocation;
+
+  RMW_SET_ERROR_MSG(
+    "rmw_take_loaned_message_with_info not implemented for rmw_connext_dynamic_cpp");
+  return RMW_RET_ERROR;
+}
+
+rmw_ret_t
+rmw_return_loaned_message_from_subscription(
+  const rmw_subscription_t * subscription,
+  void * loaned_message)
+{
+  (void) subscription;
+  (void) loaned_message;
+
+  RMW_SET_ERROR_MSG(
+    "rmw_return_loaned_message_from_subscription not implemented for rmw_connext_dynamic_cpp");
   return RMW_RET_ERROR;
 }
 
@@ -2571,6 +2705,28 @@ rmw_count_subscribers(
   size_t * count)
 {
   return count_subscribers(rti_connext_dynamic_identifier, node, topic_name, count);
+}
+
+rmw_ret_t
+rmw_get_publishers_info_by_topic(
+    const rmw_node_t * node,
+    rcutils_allocator_t * allocator,
+    const char * topic_name,
+    bool no_mangle,
+    rmw_topic_endpoint_info_array_t * publishers_info)
+{
+  return get_publishers_info_by_topic(rti_connext_dynamic_identifier, node, allocator, topic_name, no_mangle, publishers_info);
+}
+
+rmw_ret_t
+rmw_get_subscriptions_info_by_topic(
+    const rmw_node_t * node,
+    rcutils_allocator_t * allocator,
+    const char * topic_name,
+    bool no_mangle,
+    rmw_topic_endpoint_info_array_t * subscriptions_info)
+{
+  return get_subscriptions_info_by_topic(rti_connext_dynamic_identifier, node, allocator, topic_name, no_mangle, subscriptions_info);
 }
 
 rmw_ret_t

@@ -41,7 +41,7 @@ extern "C"
 rmw_ret_t
 rmw_init_subscription_allocation(
   const rosidl_message_type_support_t * type_support,
-  const rosidl_message_bounds_t * message_bounds,
+  const rosidl_runtime_c__Sequence__bound * message_bounds,
   rmw_subscription_allocation_t * allocation)
 {
   // Unused in current implementation.
@@ -67,7 +67,7 @@ rmw_create_subscription(
   const rosidl_message_type_support_t * type_supports,
   const char * topic_name,
   const rmw_qos_profile_t * qos_profile,
-  bool ignore_local_publications)
+  const rmw_subscription_options_t * subscription_options)
 {
   if (!node) {
     RMW_SET_ERROR_MSG("node handle is null");
@@ -82,6 +82,11 @@ rmw_create_subscription(
 
   if (!qos_profile) {
     RMW_SET_ERROR_MSG("qos_profile is null");
+    return nullptr;
+  }
+
+  if (!subscription_options) {
+    RMW_SET_ERROR_MSG("subscription_options is null");
     return nullptr;
   }
 
@@ -119,6 +124,7 @@ rmw_create_subscription(
   ConnextStaticSubscriberInfo * subscriber_info = nullptr;
   rmw_subscription_t * subscription = nullptr;
   std::string mangled_name;
+  rmw_qos_profile_t actual_qos_profile;
 
   char * topic_str = nullptr;
 
@@ -169,6 +175,7 @@ rmw_create_subscription(
     goto fail;
   }
   // Use a placement new to construct the ConnextSubscriberListener in the preallocated buffer.
+  // cppcheck-suppress syntaxError
   RMW_TRY_PLACEMENT_NEW(subscriber_listener, listener_buf, goto fail, ConnextSubscriberListener, )
   listener_buf = nullptr;  // Only free the buffer pointer.
 
@@ -239,7 +246,6 @@ rmw_create_subscription(
   subscriber_info->topic_reader_ = topic_reader;
   subscriber_info->read_condition_ = read_condition;
   subscriber_info->callbacks_ = callbacks;
-  subscriber_info->ignore_local_publications = ignore_local_publications;
   subscriber_info->listener_ = subscriber_listener;
   subscriber_listener = nullptr;
 
@@ -254,17 +260,25 @@ rmw_create_subscription(
   }
   memcpy(const_cast<char *>(subscription->topic_name), topic_name, strlen(topic_name) + 1);
 
+  subscription->options = *subscription_options;
+
   if (!qos_profile->avoid_ros_namespace_conventions) {
-    mangled_name =
-      topic_reader->get_topicdescription()->get_name();
+    mangled_name = topic_reader->get_topicdescription()->get_name();
   } else {
     mangled_name = topic_name;
   }
+  status = topic_reader->get_qos(datareader_qos);
+  if (DDS::RETCODE_OK != status) {
+    RMW_SET_ERROR_MSG("topic_reader can't get data reader qos policies");
+    goto fail;
+  }
+  dds_qos_to_rmw_qos(datareader_qos, &actual_qos_profile);
   node_info->subscriber_listener->add_information(
     node_info->participant->get_instance_handle(),
     dds_subscriber->get_instance_handle(),
     mangled_name,
     type_name,
+    actual_qos_profile,
     EntityType::Subscriber);
   node_info->subscriber_listener->trigger_graph_guard_condition();
 
@@ -276,6 +290,7 @@ rmw_create_subscription(
   fprintf(stderr, "******\n");
 #endif
 
+  subscription->can_loan_messages = false;
   return subscription;
 fail:
   if (topic_str) {
@@ -361,6 +376,36 @@ rmw_subscription_count_matched_publishers(
   }
 
   *publisher_count = info->listener_->current_count();
+
+  return RMW_RET_OK;
+}
+
+rmw_ret_t
+rmw_subscription_get_actual_qos(
+  const rmw_subscription_t * subscription,
+  rmw_qos_profile_t * qos)
+{
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
+
+  auto info = static_cast<ConnextStaticSubscriberInfo *>(subscription->data);
+  if (!info) {
+    RMW_SET_ERROR_MSG("subscription internal data is invalid");
+    return RMW_RET_ERROR;
+  }
+  DDS::DataReader * data_reader = info->topic_reader_;
+  if (!data_reader) {
+    RMW_SET_ERROR_MSG("subscription internal data reader is invalid");
+    return RMW_RET_ERROR;
+  }
+  DDS::DataReaderQos dds_qos;
+  DDS::ReturnCode_t status = data_reader->get_qos(dds_qos);
+  if (DDS::RETCODE_OK != status) {
+    RMW_SET_ERROR_MSG("subscription can't get data reader qos policies");
+    return RMW_RET_ERROR;
+  }
+
+  dds_qos_to_rmw_qos(dds_qos, qos);
 
   return RMW_RET_OK;
 }

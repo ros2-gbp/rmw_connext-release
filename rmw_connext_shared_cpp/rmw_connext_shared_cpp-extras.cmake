@@ -16,3 +16,12 @@
 
 include(
   "${rmw_connext_shared_cpp_DIR}/get_rmw_connext_output_filter.cmake")
+
+find_package(connext_cmake_module QUIET)
+find_package(Connext MODULE QUIET)
+
+if(Connext_FOUND)
+  list(APPEND rmw_connext_shared_cpp_DEFINITIONS ${Connext_DEFINITIONS})
+  list(APPEND rmw_connext_shared_cpp_INCLUDE_DIRS ${Connext_INCLUDE_DIRS})
+  list(APPEND rmw_connext_shared_cpp_LIBRARIES ${Connext_LIBRARIES})
+endif()
