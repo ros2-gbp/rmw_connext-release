@@ -115,6 +115,7 @@ take(
 
   if (!ignore_sample) {
     cdr_stream->buffer_length = dds_messages[0].serialized_data.length();
+    cdr_stream->buffer_capacity = cdr_stream->buffer_length;
     // TODO(karsten1987): This malloc has to go!
     cdr_stream->buffer =
       reinterpret_cast<uint8_t *>(malloc(cdr_stream->buffer_length * sizeof(uint8_t)));
@@ -248,6 +249,13 @@ _take_sequence(
     return RMW_RET_ERROR;
   }
 
+  if (count > static_cast<size_t>((std::numeric_limits<DDS_Long>::max)())) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "cannot take %ld samples at once, limit is %d",
+      count, (std::numeric_limits<DDS_Long>::max)());
+    return RMW_RET_ERROR;
+  }
+
   ConnextStaticSubscriberInfo * subscriber_info =
     static_cast<ConnextStaticSubscriberInfo *>(subscription->data);
   if (!subscriber_info) {
@@ -272,7 +280,7 @@ _take_sequence(
     ConnextStaticSerializedDataDataReader::narrow(topic_reader);
   if (!data_reader) {
     RMW_SET_ERROR_MSG("failed to narrow data reader");
-    return false;
+    return RMW_RET_ERROR;
   }
 
   ConnextStaticSerializedDataSeq dds_messages;
@@ -283,7 +291,7 @@ _take_sequence(
   DDS::ReturnCode_t status = data_reader->take(
     dds_messages,
     sample_infos,
-    count,
+    static_cast<DDS_Long>(count),
     DDS::ANY_SAMPLE_STATE,
     DDS::ANY_VIEW_STATE,
     DDS::ANY_INSTANCE_STATE);
