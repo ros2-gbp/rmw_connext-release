@@ -1,3 +1,31 @@
+## rmw_connext (rolling) - 2.0.0-1
+
+The packages in the `rmw_connext` repository were released into the `rolling` distro by running `/usr/bin/bloom-release --rosdistro rolling --track rolling rmw_connext` on `Wed, 08 Jul 2020 21:19:16 -0000`
+
+These packages were released:
+- `rmw_connext_cpp`
+- `rmw_connext_shared_cpp`
+
+These packages were explicitly ignored:
+- `rmw_connext_dynamic_cpp`
+
+Version of package(s) in repository `rmw_connext`:
+
+- upstream repository: https://github.com/ros2/rmw_connext.git
+- release repository: https://github.com/ros2-gbp/rmw_connext-release.git
+- rosdistro version: `1.2.0-1`
+- old version: `1.2.0-1`
+- new version: `2.0.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.9.7`
+- catkin_pkg version: `0.4.20`
+- rosdep version: `0.19.0`
+- rosdistro version: `0.8.1`
+- vcstools version: `0.1.42`
+
+
 ## rmw_connext (foxy) - 1.0.1-1
 
 The packages in the `rmw_connext` repository were released into the `foxy` distro by running `/usr/bin/bloom-release -r foxy rmw_connext --edit` on `Wed, 08 Jul 2020 03:56:24 -0000`
