@@ -2,8 +2,25 @@
 Changelog for package rmw_connext_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.0.1 (2020-07-07)
+2.0.0 (2020-07-08)
 ------------------
+* Remove domain_id and localhost_only from node API (`#438 <https://github.com/ros2/rmw_connext/issues/438>`_)
+* Amend rmw_init() implementation: require enclave. (`#437 <https://github.com/ros2/rmw_connext/issues/437>`_)
+* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
+
+1.2.0 (2020-06-29)
+------------------
+* Ensure compliant init/shutdown API implementation. (`#432 <https://github.com/ros2/rmw_connext/issues/432>`_)
+* Ensure compliant init options API implementations. (`#431 <https://github.com/ros2/rmw_connext/issues/431>`_)
+* Finalize context if and only if it's shutdown (`#428 <https://github.com/ros2/rmw_connext/issues/428>`_)
+* Contributors: Michel Hidalgo
+
+1.1.0 (2020-06-18)
+------------------
+* Add support to RMW_EVENT_MESSAGE_LOST (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Allow RMW events to map to more than one DDS event (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Revert the idl_pp code to try up to 10 times. (`#425 <https://github.com/ros2/rmw_connext/issues/425>`_)
+* Contributors: Chris Lalancette, Ivan Santiago Paunovic
 
 1.0.0 (2020-05-12)
 ------------------

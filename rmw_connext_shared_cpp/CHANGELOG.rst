@@ -2,10 +2,21 @@
 Changelog for package rmw_connext_shared_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.0.1 (2020-07-07)
+2.0.0 (2020-07-08)
 ------------------
-* Handle RMW_DEFAULT_DOMAIN_ID (`#427 <https://github.com/ros2/rmw_connext/issues/427>`_) (`#430 <https://github.com/ros2/rmw_connext/issues/430>`_)
+* Remove domain_id and localhost_only from node API (`#438 <https://github.com/ros2/rmw_connext/issues/438>`_)
+* Contributors: Ivan Santiago Paunovic
+
+1.2.0 (2020-06-29)
+------------------
+* Handle RMW_DEFAULT_DOMAIN_ID. (`#427 <https://github.com/ros2/rmw_connext/issues/427>`_)
 * Contributors: Michel Hidalgo
+
+1.1.0 (2020-06-18)
+------------------
+* Add support to RMW_EVENT_MESSAGE_LOST (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Allow RMW events to map to more than one DDS event (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Contributors: Ivan Santiago Paunovic
 
 1.0.0 (2020-05-12)
 ------------------
