@@ -42,7 +42,7 @@ extern "C"
 rmw_ret_t
 rmw_init_publisher_allocation(
   const rosidl_message_type_support_t * type_support,
-  const rosidl_runtime_c__Sequence__bound * message_bounds,
+  const rosidl_message_bounds_t * message_bounds,
   rmw_publisher_allocation_t * allocation)
 {
   // Unused in current implementation.
@@ -67,8 +67,7 @@ rmw_create_publisher(
   const rmw_node_t * node,
   const rosidl_message_type_support_t * type_supports,
   const char * topic_name,
-  const rmw_qos_profile_t * qos_profile,
-  const rmw_publisher_options_t * publisher_options)
+  const rmw_qos_profile_t * qos_profile)
 {
   if (!node) {
     RMW_SET_ERROR_MSG("node handle is null");
@@ -88,11 +87,6 @@ rmw_create_publisher(
 
   if (!qos_profile) {
     RMW_SET_ERROR_MSG("qos_profile is null");
-    return NULL;
-  }
-
-  if (!publisher_options) {
-    RMW_SET_ERROR_MSG("publisher_options is null");
     return NULL;
   }
 
@@ -129,7 +123,6 @@ rmw_create_publisher(
   ConnextStaticPublisherInfo * publisher_info = nullptr;
   rmw_publisher_t * publisher = nullptr;
   std::string mangled_name = "";
-  rmw_qos_profile_t actual_qos_profile;
 
   char * topic_str = nullptr;
 
@@ -139,7 +132,6 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("failed to allocate publisher");
     goto fail;
   }
-  publisher->can_loan_messages = false;
 
   type_code = callbacks->get_type_code();
   if (!type_code) {
@@ -181,7 +173,6 @@ rmw_create_publisher(
     goto fail;
   }
   // Use a placement new to construct the PublisherListener in the preallocated buffer.
-  // cppcheck-suppress syntaxError
   RMW_TRY_PLACEMENT_NEW(publisher_listener, listener_buf, goto fail, ConnextPublisherListener, )
   listener_buf = nullptr;  // Only free the buffer pointer.
 
@@ -267,25 +258,18 @@ rmw_create_publisher(
     goto fail;
   }
   memcpy(const_cast<char *>(publisher->topic_name), topic_name, strlen(topic_name) + 1);
-  publisher->options = *publisher_options;
 
   if (!qos_profile->avoid_ros_namespace_conventions) {
-    mangled_name = topic_writer->get_topic()->get_name();
+    mangled_name =
+      topic_writer->get_topic()->get_name();
   } else {
     mangled_name = topic_name;
   }
-  status = topic_writer->get_qos(datawriter_qos);
-  if (DDS::RETCODE_OK != status) {
-    RMW_SET_ERROR_MSG("topic_writer can't get data reader qos policies");
-    goto fail;
-  }
-  dds_qos_to_rmw_qos(datawriter_qos, &actual_qos_profile);
   node_info->publisher_listener->add_information(
     node_info->participant->get_instance_handle(),
     dds_publisher->get_instance_handle(),
     mangled_name,
     type_name,
-    actual_qos_profile,
     EntityType::Publisher);
   node_info->publisher_listener->trigger_graph_guard_condition();
 
@@ -402,7 +386,70 @@ rmw_publisher_get_actual_qos(
     return RMW_RET_ERROR;
   }
 
-  dds_qos_to_rmw_qos(dds_qos, qos);
+  if (!data_writer) {
+    RMW_SET_ERROR_MSG("publisher internal dds publisher is invalid");
+    return RMW_RET_ERROR;
+  }
+
+  switch (dds_qos.history.kind) {
+    case DDS_KEEP_LAST_HISTORY_QOS:
+      qos->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+      break;
+    case DDS_KEEP_ALL_HISTORY_QOS:
+      qos->history = RMW_QOS_POLICY_HISTORY_KEEP_ALL;
+      break;
+    default:
+      qos->history = RMW_QOS_POLICY_HISTORY_UNKNOWN;
+      break;
+  }
+  qos->depth = static_cast<size_t>(dds_qos.history.depth);
+
+  switch (dds_qos.reliability.kind) {
+    case DDS_BEST_EFFORT_RELIABILITY_QOS:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+      break;
+    case DDS_RELIABLE_RELIABILITY_QOS:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+      break;
+    default:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_UNKNOWN;
+      break;
+  }
+
+  switch (dds_qos.durability.kind) {
+    case DDS_TRANSIENT_LOCAL_DURABILITY_QOS:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+      break;
+    case DDS_VOLATILE_DURABILITY_QOS:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+      break;
+    default:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_UNKNOWN;
+      break;
+  }
+
+  qos->deadline.sec = dds_qos.deadline.period.sec;
+  qos->deadline.nsec = dds_qos.deadline.period.nanosec;
+
+  qos->lifespan.sec = dds_qos.lifespan.duration.sec;
+  qos->lifespan.nsec = dds_qos.lifespan.duration.nanosec;
+
+  switch (dds_qos.liveliness.kind) {
+    case DDS_AUTOMATIC_LIVELINESS_QOS:
+      qos->liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
+      break;
+    case DDS_MANUAL_BY_PARTICIPANT_LIVELINESS_QOS:
+      qos->liveliness = RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_NODE;
+      break;
+    case DDS_MANUAL_BY_TOPIC_LIVELINESS_QOS:
+      qos->liveliness = RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC;
+      break;
+    default:
+      qos->liveliness = RMW_QOS_POLICY_LIVELINESS_UNKNOWN;
+      break;
+  }
+  qos->liveliness_lease_duration.sec = dds_qos.liveliness.lease_duration.sec;
+  qos->liveliness_lease_duration.nsec = dds_qos.liveliness.lease_duration.nanosec;
 
   return RMW_RET_OK;
 }
@@ -428,33 +475,6 @@ rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
   }
 
   return RMW_RET_OK;
-}
-
-rmw_ret_t
-rmw_borrow_loaned_message(
-  const rmw_publisher_t * publisher,
-  const rosidl_message_type_support_t * type_support,
-  void ** ros_message)
-{
-  (void) publisher;
-  (void) type_support;
-  (void) ros_message;
-
-  RMW_SET_ERROR_MSG("rmw_borrow_loaned_message not implemented for rmw_connext_cpp");
-  return RMW_RET_UNSUPPORTED;
-}
-
-rmw_ret_t
-rmw_return_loaned_message_from_publisher(
-  const rmw_publisher_t * publisher,
-  void * loaned_message)
-{
-  (void) publisher;
-  (void) loaned_message;
-
-  RMW_SET_ERROR_MSG(
-    "rmw_return_loaned_message_from_publisher not implemented for rmw_connext_cpp");
-  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t

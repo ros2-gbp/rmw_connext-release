@@ -43,7 +43,7 @@ publish(DDS::DataWriter * dds_data_writer, const rcutils_uint8_array_t * cdr_str
   DDS::ReturnCode_t status = DDS::RETCODE_ERROR;
 
   instance->serialized_data.maximum(0);
-  if (cdr_stream->buffer_length > static_cast<size_t>((std::numeric_limits<DDS_Long>::max)())) {
+  if (cdr_stream->buffer_length > (std::numeric_limits<DDS_Long>::max)()) {
     RMW_SET_ERROR_MSG("cdr_stream->buffer_length unexpectedly larger than DDS_Long's max value");
     return false;
   }
@@ -182,19 +182,5 @@ rmw_publish_serialized_message(
     return RMW_RET_ERROR;
   }
   return RMW_RET_OK;
-}
-
-rmw_ret_t
-rmw_publish_loaned_message(
-  const rmw_publisher_t * publisher,
-  void * ros_message,
-  rmw_publisher_allocation_t * allocation)
-{
-  (void) publisher;
-  (void) ros_message;
-  (void) allocation;
-
-  RMW_SET_ERROR_MSG("rmw_publish_loaned_message not implemented for rmw_connext_cpp");
-  return RMW_RET_UNSUPPORTED;
 }
 }  // extern "C"

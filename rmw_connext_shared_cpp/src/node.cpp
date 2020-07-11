@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstring>
 #include <string>
 
 #include "rcutils/filesystem.h"
@@ -20,7 +19,6 @@
 #include "rmw_connext_shared_cpp/guard_condition.hpp"
 #include "rmw_connext_shared_cpp/ndds_include.hpp"
 #include "rmw_connext_shared_cpp/node.hpp"
-#include "rmw_connext_shared_cpp/security_logging.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "rmw/allocators.h"
@@ -32,7 +30,9 @@ create_node(
   const char * implementation_identifier,
   rmw_context_t * context,
   const char * name,
-  const char * namespace_)
+  const char * namespace_,
+  size_t domain_id,
+  const rmw_node_security_options_t * security_options)
 {
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -41,6 +41,10 @@ create_node(
     implementation_identifier,
     // TODO(wjwwood): replace this with RMW_RET_INCORRECT_RMW_IMPLEMENTATION when refactored
     return NULL);
+  if (!security_options) {
+    RMW_SET_ERROR_MSG("security_options is null");
+    return nullptr;
+  }
   DDS::DomainParticipantFactory * dpf_ = DDS::DomainParticipantFactory::get_instance();
   if (!dpf_) {
     RMW_SET_ERROR_MSG("failed to get participant factory");
@@ -54,40 +58,22 @@ create_node(
     RMW_SET_ERROR_MSG("failed to get default participant qos");
     return NULL;
   }
-
-  if (context->options.localhost_only == RMW_LOCALHOST_ONLY_ENABLED) {
-    status = DDS::PropertyQosPolicyHelper::add_property(
-      participant_qos.property,
-      "dds.transport.UDPv4.builtin.parent.allow_interfaces",
-      "127.0.0.1",
-      DDS::BOOLEAN_FALSE);
-    if (status != DDS::RETCODE_OK) {
-      RMW_SET_ERROR_MSG(
-        "failed to add qos property to set localhost as the only network interface");
-      return NULL;
-    }
-  }
   // This String_dup is not matched with a String_free because DDS appears to
   // free this automatically.
   participant_qos.participant_name.name = DDS::String_dup(name);
   // since the participant name is not part of the DDS spec
   // the node name is also set in the user_data
-  size_t length = std::snprintf(
-    nullptr,
-    0,
-    "name=%s;namespace=%s;enclave=%s;",
-    name, namespace_, context->options.enclave) + 1;
+  size_t length = strlen(name) + strlen("name=;") +
+    strlen(namespace_) + strlen("namespace=;") + 1;
   bool success = participant_qos.user_data.value.length(static_cast<DDS::Long>(length));
   if (!success) {
     RMW_SET_ERROR_MSG("failed to resize participant user_data");
     return NULL;
   }
 
-  int written = std::snprintf(
-    reinterpret_cast<char *>(participant_qos.user_data.value.get_contiguous_buffer()),
-    length,
-    "name=%s;namespace=%s;enclave=%s;",
-    name, namespace_, context->options.enclave);
+  int written =
+    snprintf(reinterpret_cast<char *>(participant_qos.user_data.value.get_contiguous_buffer()),
+      length, "name=%s;namespace=%s;", name, namespace_);
   if (written < 0 || written > static_cast<int>(length) - 1) {
     RMW_SET_ERROR_MSG("failed to populate user_data buffer");
     return NULL;
@@ -111,6 +97,15 @@ create_node(
     participant_qos.property,
     "dds.transport.UDPv4.builtin.ignore_loopback_interface",
     "0",
+    DDS::BOOLEAN_FALSE);
+  if (status != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to add qos property");
+    return NULL;
+  }
+  status = DDS::PropertyQosPolicyHelper::add_property(
+    participant_qos.property,
+    "dds.transport.use_510_compatible_locator_kinds",
+    "1",
     DDS::BOOLEAN_FALSE);
   if (status != DDS::RETCODE_OK) {
     RMW_SET_ERROR_MSG("failed to add qos property");
@@ -144,7 +139,7 @@ create_node(
   char * gov_fn = nullptr;
   char * perm_fn = nullptr;
 
-  if (context->options.security_options.security_root_path) {
+  if (security_options->security_root_path) {
     // enable some security stuff
     status = DDS::PropertyQosPolicyHelper::add_property(
       participant_qos.property,
@@ -174,7 +169,7 @@ create_node(
       return NULL;
     }
 
-    srp = context->options.security_options.security_root_path;  // save some typing
+    srp = security_options->security_root_path;  // save some typing
     identity_ca_cert_fn = rcutils_join_path(srp, "identity_ca.cert.pem", allocator);
     if (!identity_ca_cert_fn) {
       RMW_SET_ERROR_MSG("failed to allocate memory for 'identity_ca_cert_fn'");
@@ -265,23 +260,11 @@ create_node(
       RMW_SET_ERROR_MSG("failed to add security property");
       goto fail;
     }
-
-    // Configure security logging
-    if (apply_security_logging_configuration(participant_qos.property) != RMW_RET_OK) {
-      goto fail;
-    }
   }
 
-  // No custom handling of RMW_DEFAULT_DOMAIN_ID. Simply use a reasonable domain id.
-  {
-    size_t domain_id = context->options.domain_id;
-    participant = dpf_->create_participant(
-      static_cast<DDS::DomainId_t>(
-        domain_id != RMW_DEFAULT_DOMAIN_ID ? domain_id : 0u),
-      participant_qos,
-      NULL,
-      DDS::STATUS_MASK_NONE);
-  }
+  participant = dpf_->create_participant(
+    static_cast<DDS::DomainId_t>(domain_id), participant_qos, NULL,
+    DDS::STATUS_MASK_NONE);
   if (!participant) {
     RMW_SET_ERROR_MSG("failed to create participant");
     goto fail;
@@ -377,7 +360,6 @@ create_node(
 
   node_handle->implementation_identifier = implementation_identifier;
   node_handle->data = node_info;
-  node_handle->context = context;
   return node_handle;
 fail:
   status = dpf_->delete_participant(participant);
@@ -502,6 +484,34 @@ destroy_node(const char * implementation_identifier, rmw_node_t * node)
   rmw_free(const_cast<char *>(node->namespace_));
   node->namespace_ = nullptr;
   rmw_node_free(node);
+
+  return RMW_RET_OK;
+}
+
+rmw_ret_t
+assert_liveliness(const char * implementation_identifier, const rmw_node_t * node)
+{
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node handle,
+    node->implementation_identifier,
+    implementation_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
+
+  auto node_info = static_cast<ConnextNodeInfo *>(node->data);
+  if (nullptr == node_info) {
+    RMW_SET_ERROR_MSG("node info handle is null");
+    return RMW_RET_ERROR;
+  }
+  if (nullptr == node_info->participant) {
+    RMW_SET_ERROR_MSG("node internal participant is invalid");
+    return RMW_RET_ERROR;
+  }
+
+  if (node_info->participant->assert_liveliness() != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to assert liveliness of participant");
+    return RMW_RET_ERROR;
+  }
 
   return RMW_RET_OK;
 }
