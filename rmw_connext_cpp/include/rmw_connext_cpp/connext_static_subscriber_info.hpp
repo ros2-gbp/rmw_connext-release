@@ -36,14 +36,13 @@ struct ConnextStaticSubscriberInfo : ConnextCustomEventInfo
   ConnextSubscriberListener * listener_;
   DDS::DataReader * topic_reader_;
   DDS::ReadCondition * read_condition_;
-  bool ignore_local_publications;
   const message_type_support_callbacks_t * callbacks_;
   /// Remap the specific RTI Connext DDS DataReader Status to a generic RMW status type.
   /**
    * \param mask input status mask
    * \param event
    */
-  rmw_ret_t get_status(DDS::StatusMask mask, void * event) override;
+  rmw_ret_t get_status(rmw_event_type_t event_type, void * event) override;
   /// Return the topic reader entity for this subscriber.
   /**
    * \return the topic reader associated with this subscriber

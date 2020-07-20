@@ -96,9 +96,6 @@ set_entity_qos_from_profile_generic(
     case RMW_QOS_POLICY_LIVELINESS_AUTOMATIC:
       entity_qos.liveliness.kind = DDS::AUTOMATIC_LIVELINESS_QOS;
       break;
-    case RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_NODE:
-      entity_qos.liveliness.kind = DDS::MANUAL_BY_PARTICIPANT_LIVELINESS_QOS;
-      break;
     case RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC:
       entity_qos.liveliness.kind = DDS::MANUAL_BY_TOPIC_LIVELINESS_QOS;
       break;
@@ -118,7 +115,7 @@ set_entity_qos_from_profile_generic(
     entity_qos.history.kind == DDS::KEEP_LAST_HISTORY_QOS &&
     static_cast<size_t>(entity_qos.history.depth) < qos_profile.depth)
   {
-    if (qos_profile.depth > (std::numeric_limits<DDS::Long>::max)()) {
+    if (qos_profile.depth > static_cast<size_t>((std::numeric_limits<DDS::Long>::max)())) {
       RMW_SET_ERROR_MSG(
         "failed to set history depth since the requested queue size exceeds the DDS type");
       return false;
@@ -222,3 +219,147 @@ get_datawriter_qos(
 
   return true;
 }
+
+rmw_qos_policy_kind_t
+dds_qos_policy_to_rmw_qos_policy(DDS::QosPolicyId_t policy_id)
+{
+  switch (policy_id) {
+    case DDS_DURABILITY_QOS_POLICY_ID:
+      return RMW_QOS_POLICY_DURABILITY;
+    case DDS_DEADLINE_QOS_POLICY_ID:
+      return RMW_QOS_POLICY_DEADLINE;
+    case DDS_LIVELINESS_QOS_POLICY_ID:
+      return RMW_QOS_POLICY_LIVELINESS;
+    case DDS_RELIABILITY_QOS_POLICY_ID:
+      return RMW_QOS_POLICY_RELIABILITY;
+    case DDS_HISTORY_QOS_POLICY_ID:
+      return RMW_QOS_POLICY_HISTORY;
+    case DDS_LIFESPAN_QOS_POLICY_ID:
+      return RMW_QOS_POLICY_LIFESPAN;
+    default:
+      return RMW_QOS_POLICY_INVALID;
+  }
+}
+
+template<typename AttributeT>
+void
+dds_qos_lifespan_to_rmw_qos_lifespan(
+  const AttributeT & dds_qos,
+  rmw_qos_profile_t * qos)
+{
+  qos->lifespan.sec = dds_qos.lifespan.duration.sec;
+  qos->lifespan.nsec = dds_qos.lifespan.duration.nanosec;
+}
+
+template<>
+void
+dds_qos_lifespan_to_rmw_qos_lifespan<DDS::DataReaderQos>(
+  const DDS::DataReaderQos & /*dds_qos*/,
+  rmw_qos_profile_t * /*qos*/)
+{
+  // lifespan does does not exist in DataReader, so no-op here
+}
+
+template<>
+void
+dds_qos_lifespan_to_rmw_qos_lifespan<DDS::SubscriptionBuiltinTopicData>(
+  const DDS::SubscriptionBuiltinTopicData & /*dds_qos*/,
+  rmw_qos_profile_t * /*qos*/)
+{
+  // lifespan does does not exist in DataReader, so no-op here
+}
+
+template<typename AttributeT>
+void
+dds_qos_to_rmw_qos(
+  const AttributeT & dds_qos,
+  rmw_qos_profile_t * qos)
+{
+  dds_remote_qos_to_rmw_qos(dds_qos, qos);
+
+  switch (dds_qos.history.kind) {
+    case DDS_KEEP_LAST_HISTORY_QOS:
+      qos->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+      break;
+    case DDS_KEEP_ALL_HISTORY_QOS:
+      qos->history = RMW_QOS_POLICY_HISTORY_KEEP_ALL;
+      break;
+    default:
+      qos->history = RMW_QOS_POLICY_HISTORY_UNKNOWN;
+      break;
+  }
+  qos->depth = static_cast<size_t>(dds_qos.history.depth);
+}
+
+template
+void dds_qos_to_rmw_qos<DDS::DataWriterQos>(
+  const DDS::DataWriterQos & dds_qos,
+  rmw_qos_profile_t * qos);
+
+template
+void dds_qos_to_rmw_qos<DDS::DataReaderQos>(
+  const DDS::DataReaderQos & dds_qos,
+  rmw_qos_profile_t * qos);
+
+template<typename AttributeT>
+void
+dds_remote_qos_to_rmw_qos(
+  const AttributeT & dds_qos,
+  rmw_qos_profile_t * qos)
+{
+  qos->history = RMW_QOS_POLICY_HISTORY_UNKNOWN;
+  qos->depth = RMW_QOS_POLICY_DEPTH_SYSTEM_DEFAULT;
+
+  switch (dds_qos.reliability.kind) {
+    case DDS_BEST_EFFORT_RELIABILITY_QOS:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+      break;
+    case DDS_RELIABLE_RELIABILITY_QOS:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+      break;
+    default:
+      qos->reliability = RMW_QOS_POLICY_RELIABILITY_UNKNOWN;
+      break;
+  }
+
+  switch (dds_qos.durability.kind) {
+    case DDS_TRANSIENT_LOCAL_DURABILITY_QOS:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+      break;
+    case DDS_VOLATILE_DURABILITY_QOS:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+      break;
+    default:
+      qos->durability = RMW_QOS_POLICY_DURABILITY_UNKNOWN;
+      break;
+  }
+
+  qos->deadline.sec = dds_qos.deadline.period.sec;
+  qos->deadline.nsec = dds_qos.deadline.period.nanosec;
+
+  dds_qos_lifespan_to_rmw_qos_lifespan(dds_qos, qos);
+
+  switch (dds_qos.liveliness.kind) {
+    case DDS_AUTOMATIC_LIVELINESS_QOS:
+      qos->liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
+      break;
+    case DDS_MANUAL_BY_TOPIC_LIVELINESS_QOS:
+      qos->liveliness = RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC;
+      break;
+    default:
+      qos->liveliness = RMW_QOS_POLICY_LIVELINESS_UNKNOWN;
+      break;
+  }
+  qos->liveliness_lease_duration.sec = dds_qos.liveliness.lease_duration.sec;
+  qos->liveliness_lease_duration.nsec = dds_qos.liveliness.lease_duration.nanosec;
+}
+
+template
+void dds_remote_qos_to_rmw_qos<DDS::PublicationBuiltinTopicData>(
+  const DDS::PublicationBuiltinTopicData & dds_qos,
+  rmw_qos_profile_t * qos);
+
+template
+void dds_remote_qos_to_rmw_qos<DDS::SubscriptionBuiltinTopicData>(
+  const DDS::SubscriptionBuiltinTopicData & dds_qos,
+  rmw_qos_profile_t * qos);
