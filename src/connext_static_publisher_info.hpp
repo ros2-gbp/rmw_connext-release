@@ -12,50 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_CONNEXT_CPP__CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
-#define RMW_CONNEXT_CPP__CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
+#ifndef CONNEXT_STATIC_PUBLISHER_INFO_HPP_
+#define CONNEXT_STATIC_PUBLISHER_INFO_HPP_
 
 #include <atomic>
 
 #include "rmw_connext_shared_cpp/ndds_include.hpp"
-#include "rmw_connext_shared_cpp/connext_static_event_info.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
+#include "rmw_connext_shared_cpp/connext_static_event_info.hpp"
 
 #include "ndds/ndds_cpp.h"
 #include "ndds/ndds_namespace_cpp.h"
 
 #include "rosidl_typesupport_connext_cpp/message_type_support.h"
+
 #include "rmw/types.h"
 #include "rmw/ret_types.h"
 
-class ConnextSubscriberListener;
+class ConnextPublisherListener;
 
-struct ConnextStaticSubscriberInfo : ConnextCustomEventInfo
+struct ConnextStaticPublisherInfo : ConnextCustomEventInfo
 {
-  DDS::Subscriber * dds_subscriber_;
-  ConnextSubscriberListener * listener_;
-  DDS::DataReader * topic_reader_;
-  DDS::ReadCondition * read_condition_;
+  DDS::Publisher * dds_publisher_;
+  ConnextPublisherListener * listener_;
+  DDS::DataWriter * topic_writer_;
+  DDS::Topic * topic_;
   const message_type_support_callbacks_t * callbacks_;
-  /// Remap the specific RTI Connext DDS DataReader Status to a generic RMW status type.
+  rmw_gid_t publisher_gid;
+
   /**
+   * Remap the specific RTI Connext DDS DataWriter Status to a generic RMW status type.
+   *
    * \param mask input status mask
    * \param event
    */
   rmw_ret_t get_status(rmw_event_type_t event_type, void * event) override;
-  /// Return the topic reader entity for this subscriber.
+
+  /// Return the topic writer entity for this publisher.
   /**
-   * \return the topic reader associated with this subscriber
+   * \return the topic writer associated with this publisher
    */
   DDS::Entity * get_entity() override;
 };
 
-class ConnextSubscriberListener : public DDS::SubscriberListener
+class ConnextPublisherListener : public DDS::PublisherListener
 {
 public:
-  virtual void on_subscription_matched(
-    DDSDataReader *,
-    const DDS_SubscriptionMatchedStatus & status)
+  virtual void on_publication_matched(
+    DDSDataWriter *,
+    const DDS_PublicationMatchedStatus & status)
   {
     current_count_ = status.current_count;
   }
@@ -69,4 +74,4 @@ private:
   std::atomic<std::size_t> current_count_;
 };
 
-#endif  // RMW_CONNEXT_CPP__CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
+#endif  // CONNEXT_STATIC_PUBLISHER_INFO_HPP_
