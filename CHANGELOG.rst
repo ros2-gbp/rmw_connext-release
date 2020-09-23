@@ -2,6 +2,11 @@
 Changelog for package rmw_connext_shared_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+3.4.0 (2020-09-23)
+------------------
+* Update graph API return codes. (`#459 <https://github.com/ros2/rmw_connext/issues/459>`_)
+* Contributors: Michel Hidalgo
+
 3.3.0 (2020-09-18)
 ------------------
 
