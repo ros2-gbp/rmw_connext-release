@@ -2,60 +2,19 @@
 Changelog for package rmw_connext_shared_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.4.2 (2020-09-29)
+1.0.2 (2020-10-15)
 ------------------
-
-3.4.1 (2020-09-26)
-------------------
-* Updated publisher/subscription allocation and wait set API return codes. (`#463 <https://github.com/ros2/rmw_connext/issues/463>`_)
-* Contributors: Alejandro Hernández Cordero
-
-3.4.0 (2020-09-23)
-------------------
+* Fixed Foxy
+* Updated rmw\_* return codes (`#463 <https://github.com/ros2/rmw_connext/issues/463>`_)
 * Update graph API return codes. (`#459 <https://github.com/ros2/rmw_connext/issues/459>`_)
+* Ensure compliant publisher API (`#445 <https://github.com/ros2/rmw_connext/issues/445>`_)
+* Ensure compliant node construction/destruction API. (`#439 <https://github.com/ros2/rmw_connext/issues/439>`_)
+* Contributors: Alejandro Hernández Cordero, Michel Hidalgo
+
+1.0.1 (2020-07-07)
+------------------
+* Handle RMW_DEFAULT_DOMAIN_ID (`#427 <https://github.com/ros2/rmw_connext/issues/427>`_) (`#430 <https://github.com/ros2/rmw_connext/issues/430>`_)
 * Contributors: Michel Hidalgo
-
-3.3.0 (2020-09-18)
-------------------
-
-3.2.0 (2020-08-28)
-------------------
-
-3.1.0 (2020-08-06)
-------------------
-
-3.0.0 (2020-08-03)
-------------------
-* Ensure compliant publisher API. (`#445 <https://github.com/ros2/rmw_connext/issues/445>`_)
-* Avoid leaking DDS::Topic objects. (`#444 <https://github.com/ros2/rmw_connext/issues/444>`_)
-* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
-
-2.2.0 (2020-07-22)
-------------------
-* Set context actual domain id (`#443 <https://github.com/ros2/rmw_connext/issues/443>`_)
-* Contributors: Ivan Santiago Paunovic
-
-2.1.0 (2020-07-20)
-------------------
-* Fix topic creation race condition (`#442 <https://github.com/ros2/rmw_connext/issues/442>`_)
-* Ensure compliant node construction/destruction API (`#439 <https://github.com/ros2/rmw_connext/issues/439>`_)
-* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
-
-2.0.0 (2020-07-08)
-------------------
-* Remove domain_id and localhost_only from node API (`#438 <https://github.com/ros2/rmw_connext/issues/438>`_)
-* Contributors: Ivan Santiago Paunovic
-
-1.2.0 (2020-06-29)
-------------------
-* Handle RMW_DEFAULT_DOMAIN_ID. (`#427 <https://github.com/ros2/rmw_connext/issues/427>`_)
-* Contributors: Michel Hidalgo
-
-1.1.0 (2020-06-18)
-------------------
-* Add support to RMW_EVENT_MESSAGE_LOST (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
-* Allow RMW events to map to more than one DDS event (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
-* Contributors: Ivan Santiago Paunovic
 
 1.0.0 (2020-05-12)
 ------------------

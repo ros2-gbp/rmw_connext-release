@@ -26,10 +26,12 @@ rmw_node_t *
 rmw_create_node(
   rmw_context_t * context,
   const char * name,
-  const char * namespace_)
+  const char * namespace_,
+  size_t domain_id,
+  bool localhost_only)
 {
   return create_node(
-    rti_connext_identifier, context, name, namespace_);
+    rti_connext_identifier, context, name, namespace_, domain_id, localhost_only);
 }
 
 rmw_ret_t

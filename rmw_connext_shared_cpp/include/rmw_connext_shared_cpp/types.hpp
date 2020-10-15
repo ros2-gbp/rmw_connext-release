@@ -149,7 +149,6 @@ struct ConnextNodeInfo
   CustomPublisherListener * publisher_listener;
   CustomSubscriberListener * subscriber_listener;
   rmw_guard_condition_t * graph_guard_condition;
-  std::mutex topic_creation_mutex;
 };
 
 struct ConnextPublisherGID

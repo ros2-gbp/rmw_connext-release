@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONNEXT_STATIC_CLIENT_INFO_HPP_
-#define CONNEXT_STATIC_CLIENT_INFO_HPP_
+#ifndef RMW_CONNEXT_CPP__CONNEXT_STATIC_SERVICE_INFO_HPP_
+#define RMW_CONNEXT_CPP__CONNEXT_STATIC_SERVICE_INFO_HPP_
 
 #include "rmw_connext_shared_cpp/ndds_include.hpp"
 
@@ -21,13 +21,13 @@
 
 extern "C"
 {
-struct ConnextStaticClientInfo
+struct ConnextStaticServiceInfo
 {
-  void * requester_;
-  DDS::DataReader * response_datareader_;
+  void * replier_;
+  DDS::DataReader * request_datareader_;
   DDS::ReadCondition * read_condition_;
   const service_type_support_callbacks_t * callbacks_;
 };
 }  // extern "C"
 
-#endif  // CONNEXT_STATIC_CLIENT_INFO_HPP_
+#endif  // RMW_CONNEXT_CPP__CONNEXT_STATIC_SERVICE_INFO_HPP_

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
-#define CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
+#ifndef RMW_CONNEXT_CPP__CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
+#define RMW_CONNEXT_CPP__CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
 
 #include <atomic>
 
@@ -35,7 +35,6 @@ struct ConnextStaticSubscriberInfo : ConnextCustomEventInfo
   DDS::Subscriber * dds_subscriber_;
   ConnextSubscriberListener * listener_;
   DDS::DataReader * topic_reader_;
-  DDS::Topic * topic_;
   DDS::ReadCondition * read_condition_;
   const message_type_support_callbacks_t * callbacks_;
   /// Remap the specific RTI Connext DDS DataReader Status to a generic RMW status type.
@@ -43,7 +42,7 @@ struct ConnextStaticSubscriberInfo : ConnextCustomEventInfo
    * \param mask input status mask
    * \param event
    */
-  rmw_ret_t get_status(rmw_event_type_t event_type, void * event) override;
+  rmw_ret_t get_status(DDS::StatusMask mask, void * event) override;
   /// Return the topic reader entity for this subscriber.
   /**
    * \return the topic reader associated with this subscriber
@@ -70,4 +69,4 @@ private:
   std::atomic<std::size_t> current_count_;
 };
 
-#endif  // CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_
+#endif  // RMW_CONNEXT_CPP__CONNEXT_STATIC_SUBSCRIBER_INFO_HPP_

@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "connext_static_publisher_info.hpp"
 
+#include "rmw_connext_cpp/connext_static_publisher_info.hpp"
 #include "rmw_connext_shared_cpp/event_converter.hpp"
 #include "rmw_connext_shared_cpp/qos.hpp"
 
 rmw_ret_t ConnextStaticPublisherInfo::get_status(
-  rmw_event_type_t event_type,
+  DDS::StatusMask mask,
   void * event)
 {
-  switch (event_type) {
-    case RMW_EVENT_LIVELINESS_LOST:
+  switch (mask) {
+    case DDS::StatusKind::DDS_LIVELINESS_LOST_STATUS:
       {
         DDS::LivelinessLostStatus liveliness_lost;
         DDS::ReturnCode_t dds_return_code =
@@ -40,7 +40,7 @@ rmw_ret_t ConnextStaticPublisherInfo::get_status(
 
         break;
       }
-    case RMW_EVENT_OFFERED_DEADLINE_MISSED:
+    case DDS::StatusKind::DDS_OFFERED_DEADLINE_MISSED_STATUS:
       {
         DDS::OfferedDeadlineMissedStatus offered_deadline_missed;
         DDS::ReturnCode_t dds_return_code =
@@ -59,7 +59,7 @@ rmw_ret_t ConnextStaticPublisherInfo::get_status(
 
         break;
       }
-    case RMW_EVENT_OFFERED_QOS_INCOMPATIBLE:
+    case DDS::StatusKind::DDS_OFFERED_INCOMPATIBLE_QOS_STATUS:
       {
         DDS::OfferedIncompatibleQosStatus offered_incompatible_qos;
         DDS::ReturnCode_t dds_return_code =

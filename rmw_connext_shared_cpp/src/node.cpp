@@ -35,7 +35,9 @@ create_node(
   const char * implementation_identifier,
   rmw_context_t * context,
   const char * name,
-  const char * namespace_)
+  const char * namespace_,
+  size_t domain_id,
+  bool localhost_only)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(context, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -88,7 +90,7 @@ create_node(
     return NULL;
   }
 
-  if (context->options.localhost_only == RMW_LOCALHOST_ONLY_ENABLED) {
+  if (localhost_only) {
     status = DDS::PropertyQosPolicyHelper::add_property(
       participant_qos.property,
       "dds.transport.UDPv4.builtin.parent.allow_interfaces",
@@ -305,13 +307,13 @@ create_node(
     }
   }
 
-  {
-    participant = dpf_->create_participant(
-      static_cast<DDS::DomainId_t>(context->actual_domain_id),
-      participant_qos,
-      NULL,
-      DDS::STATUS_MASK_NONE);
-  }
+  // No custom handling of RMW_DEFAULT_DOMAIN_ID. Simply use a reasonable domain id.
+  participant = dpf_->create_participant(
+    static_cast<DDS::DomainId_t>(
+      domain_id != RMW_DEFAULT_DOMAIN_ID ? domain_id : 0u),
+    participant_qos,
+    NULL,
+    DDS::STATUS_MASK_NONE);
   if (!participant) {
     RMW_SET_ERROR_MSG("failed to create participant");
     goto fail;
@@ -477,7 +479,7 @@ destroy_node(const char * implementation_identifier, rmw_node_t * node)
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
   auto participant = static_cast<DDS::DomainParticipant *>(node_info->participant);
 
-  // This unregisters types which were shared between
+  // This unregisters types and destroys topics which were shared between
   // publishers and subscribers and could not be cleaned up in the delete functions.
   if (participant->delete_contained_entities() == DDS::RETCODE_OK) {
     DDS::DomainParticipantFactory * dpf_ = DDS::DomainParticipantFactory::get_instance();
