@@ -27,11 +27,15 @@ create_node(
   const char * name,
   const char * namespace_,
   size_t domain_id,
-  bool localhost_only);
+  const rmw_node_security_options_t * options);
 
 RMW_CONNEXT_SHARED_CPP_PUBLIC
 rmw_ret_t
 destroy_node(const char * implementation_identifier, rmw_node_t * node);
+
+RMW_CONNEXT_SHARED_CPP_PUBLIC
+rmw_ret_t
+assert_liveliness(const char * implementation_identifier, const rmw_node_t * node);
 
 RMW_CONNEXT_SHARED_CPP_PUBLIC
 const rmw_guard_condition_t *

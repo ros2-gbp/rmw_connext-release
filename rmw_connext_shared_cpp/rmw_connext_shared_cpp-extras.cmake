@@ -20,7 +20,11 @@ include(
 find_package(connext_cmake_module QUIET)
 find_package(Connext MODULE QUIET)
 
-if(Connext_FOUND)
+if(NOT Connext_FOUND)
+  message(STATUS
+    "Could not find RTI Connext - skipping rmw_connext_shared_cpp")
+  set(rmw_connext_shared_cpp_FOUND FALSE)
+else()
   list(APPEND rmw_connext_shared_cpp_DEFINITIONS ${Connext_DEFINITIONS})
   list(APPEND rmw_connext_shared_cpp_INCLUDE_DIRS ${Connext_INCLUDE_DIRS})
   list(APPEND rmw_connext_shared_cpp_LIBRARIES ${Connext_LIBRARIES})

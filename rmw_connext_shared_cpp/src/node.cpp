@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstring>
 #include <string>
 
 #include "rcutils/filesystem.h"
 
 #include "rmw_connext_shared_cpp/guard_condition.hpp"
-#include "rmw_connext_shared_cpp/init.hpp"
 #include "rmw_connext_shared_cpp/ndds_include.hpp"
 #include "rmw_connext_shared_cpp/node.hpp"
-#include "rmw_connext_shared_cpp/security_logging.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "rmw/allocators.h"
 #include "rmw/error_handling.h"
 #include "rmw/impl/cpp/macros.hpp"
-#include "rmw/validate_namespace.h"
-#include "rmw/validate_node_name.h"
 
 rmw_node_t *
 create_node(
@@ -37,45 +32,19 @@ create_node(
   const char * name,
   const char * namespace_,
   size_t domain_id,
-  bool localhost_only)
+  const rmw_node_security_options_t * security_options)
 {
-  RMW_CHECK_ARGUMENT_FOR_NULL(context, NULL);
+  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     init context,
     context->implementation_identifier,
     implementation_identifier,
     // TODO(wjwwood): replace this with RMW_RET_INCORRECT_RMW_IMPLEMENTATION when refactored
     return NULL);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context->impl,
-    "expected initialized context",
-    return NULL);
-  if (context->impl->is_shutdown) {
-    RCUTILS_SET_ERROR_MSG("context has been shutdown");
-    return NULL;
+  if (!security_options) {
+    RMW_SET_ERROR_MSG("security_options is null");
+    return nullptr;
   }
-
-  int validation_result = RMW_NODE_NAME_VALID;
-  rmw_ret_t ret = rmw_validate_node_name(name, &validation_result, nullptr);
-  if (RMW_RET_OK != ret) {
-    return NULL;
-  }
-  if (RMW_NODE_NAME_VALID != validation_result) {
-    const char * reason = rmw_node_name_validation_result_string(validation_result);
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node name: %s", reason);
-    return NULL;
-  }
-  validation_result = RMW_NAMESPACE_VALID;
-  ret = rmw_validate_namespace(namespace_, &validation_result, nullptr);
-  if (RMW_RET_OK != ret) {
-    return NULL;
-  }
-  if (RMW_NAMESPACE_VALID != validation_result) {
-    const char * reason = rmw_node_name_validation_result_string(validation_result);
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node namespace: %s", reason);
-    return NULL;
-  }
-
   DDS::DomainParticipantFactory * dpf_ = DDS::DomainParticipantFactory::get_instance();
   if (!dpf_) {
     RMW_SET_ERROR_MSG("failed to get participant factory");
@@ -89,40 +58,22 @@ create_node(
     RMW_SET_ERROR_MSG("failed to get default participant qos");
     return NULL;
   }
-
-  if (localhost_only) {
-    status = DDS::PropertyQosPolicyHelper::add_property(
-      participant_qos.property,
-      "dds.transport.UDPv4.builtin.parent.allow_interfaces",
-      "127.0.0.1",
-      DDS::BOOLEAN_FALSE);
-    if (status != DDS::RETCODE_OK) {
-      RMW_SET_ERROR_MSG(
-        "failed to add qos property to set localhost as the only network interface");
-      return NULL;
-    }
-  }
   // This String_dup is not matched with a String_free because DDS appears to
   // free this automatically.
   participant_qos.participant_name.name = DDS::String_dup(name);
   // since the participant name is not part of the DDS spec
   // the node name is also set in the user_data
-  size_t length = std::snprintf(
-    nullptr,
-    0,
-    "name=%s;namespace=%s;enclave=%s;",
-    name, namespace_, context->options.enclave) + 1;
+  size_t length = strlen(name) + strlen("name=;") +
+    strlen(namespace_) + strlen("namespace=;") + 1;
   bool success = participant_qos.user_data.value.length(static_cast<DDS::Long>(length));
   if (!success) {
     RMW_SET_ERROR_MSG("failed to resize participant user_data");
     return NULL;
   }
 
-  int written = std::snprintf(
-    reinterpret_cast<char *>(participant_qos.user_data.value.get_contiguous_buffer()),
-    length,
-    "name=%s;namespace=%s;enclave=%s;",
-    name, namespace_, context->options.enclave);
+  int written =
+    snprintf(reinterpret_cast<char *>(participant_qos.user_data.value.get_contiguous_buffer()),
+      length, "name=%s;namespace=%s;", name, namespace_);
   if (written < 0 || written > static_cast<int>(length) - 1) {
     RMW_SET_ERROR_MSG("failed to populate user_data buffer");
     return NULL;
@@ -146,6 +97,15 @@ create_node(
     participant_qos.property,
     "dds.transport.UDPv4.builtin.ignore_loopback_interface",
     "0",
+    DDS::BOOLEAN_FALSE);
+  if (status != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to add qos property");
+    return NULL;
+  }
+  status = DDS::PropertyQosPolicyHelper::add_property(
+    participant_qos.property,
+    "dds.transport.use_510_compatible_locator_kinds",
+    "1",
     DDS::BOOLEAN_FALSE);
   if (status != DDS::RETCODE_OK) {
     RMW_SET_ERROR_MSG("failed to add qos property");
@@ -179,7 +139,7 @@ create_node(
   char * gov_fn = nullptr;
   char * perm_fn = nullptr;
 
-  if (context->options.security_options.security_root_path) {
+  if (security_options->security_root_path) {
     // enable some security stuff
     status = DDS::PropertyQosPolicyHelper::add_property(
       participant_qos.property,
@@ -209,7 +169,7 @@ create_node(
       return NULL;
     }
 
-    srp = context->options.security_options.security_root_path;  // save some typing
+    srp = security_options->security_root_path;  // save some typing
     identity_ca_cert_fn = rcutils_join_path(srp, "identity_ca.cert.pem", allocator);
     if (!identity_ca_cert_fn) {
       RMW_SET_ERROR_MSG("failed to allocate memory for 'identity_ca_cert_fn'");
@@ -300,19 +260,10 @@ create_node(
       RMW_SET_ERROR_MSG("failed to add security property");
       goto fail;
     }
-
-    // Configure security logging
-    if (apply_security_logging_configuration(participant_qos.property) != RMW_RET_OK) {
-      goto fail;
-    }
   }
 
-  // No custom handling of RMW_DEFAULT_DOMAIN_ID. Simply use a reasonable domain id.
   participant = dpf_->create_participant(
-    static_cast<DDS::DomainId_t>(
-      domain_id != RMW_DEFAULT_DOMAIN_ID ? domain_id : 0u),
-    participant_qos,
-    NULL,
+    static_cast<DDS::DomainId_t>(domain_id), participant_qos, NULL,
     DDS::STATUS_MASK_NONE);
   if (!participant) {
     RMW_SET_ERROR_MSG("failed to create participant");
@@ -409,7 +360,6 @@ create_node(
 
   node_handle->implementation_identifier = implementation_identifier;
   node_handle->data = node_info;
-  node_handle->context = context;
   return node_handle;
 fail:
   status = dpf_->delete_participant(participant);
@@ -468,63 +418,102 @@ fail:
 rmw_ret_t
 destroy_node(const char * implementation_identifier, rmw_node_t * node)
 {
+  if (!node) {
+    RMW_SET_ERROR_MSG("node handle is null");
+    return RMW_RET_ERROR;
+  }
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node handle,
+    node->implementation_identifier, implementation_identifier,
+    return RMW_RET_ERROR)
+
+  DDS::DomainParticipantFactory * dpf_ = DDS::DomainParticipantFactory::get_instance();
+  if (!dpf_) {
+    RMW_SET_ERROR_MSG("failed to get participant factory");
+    return RMW_RET_ERROR;
+  }
+
+  auto node_info = static_cast<ConnextNodeInfo *>(node->data);
+  if (!node_info) {
+    RMW_SET_ERROR_MSG("node info handle is null");
+    return RMW_RET_ERROR;
+  }
+  auto participant = static_cast<DDS::DomainParticipant *>(node_info->participant);
+  if (!participant) {
+    RMW_SET_ERROR_MSG("participant handle is null");
+  }
+  // This unregisters types and destroys topics which were shared between
+  // publishers and subscribers and could not be cleaned up in the delete functions.
+  if (participant->delete_contained_entities() != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to delete contained entities of participant");
+    return RMW_RET_ERROR;
+  }
+
+  DDS::ReturnCode_t ret = dpf_->delete_participant(participant);
+  if (ret != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to delete participant");
+    return RMW_RET_ERROR;
+  }
+
+  if (node_info->publisher_listener) {
+    RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+      node_info->publisher_listener->~CustomPublisherListener(), CustomPublisherListener)
+    rmw_free(node_info->publisher_listener);
+    node_info->publisher_listener = nullptr;
+  }
+  if (node_info->subscriber_listener) {
+    RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+      node_info->subscriber_listener->~CustomSubscriberListener(), CustomSubscriberListener)
+    rmw_free(node_info->subscriber_listener);
+    node_info->subscriber_listener = nullptr;
+  }
+  if (node_info->graph_guard_condition) {
+    rmw_ret_t rmw_ret =
+      destroy_guard_condition(implementation_identifier, node_info->graph_guard_condition);
+    if (rmw_ret != RMW_RET_OK) {
+      RMW_SET_ERROR_MSG("failed to delete graph guard condition");
+      return RMW_RET_ERROR;
+    }
+    node_info->graph_guard_condition = nullptr;
+  }
+
+  rmw_free(node_info);
+  node->data = nullptr;
+  rmw_free(const_cast<char *>(node->name));
+  node->name = nullptr;
+  rmw_free(const_cast<char *>(node->namespace_));
+  node->namespace_ = nullptr;
+  rmw_node_free(node);
+
+  return RMW_RET_OK;
+}
+
+rmw_ret_t
+assert_liveliness(const char * implementation_identifier, const rmw_node_t * node)
+{
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node handle,
     node->implementation_identifier,
     implementation_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
 
-  rmw_ret_t ret = RMW_RET_OK;
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
-  auto participant = static_cast<DDS::DomainParticipant *>(node_info->participant);
-
-  // This unregisters types and destroys topics which were shared between
-  // publishers and subscribers and could not be cleaned up in the delete functions.
-  if (participant->delete_contained_entities() == DDS::RETCODE_OK) {
-    DDS::DomainParticipantFactory * dpf_ = DDS::DomainParticipantFactory::get_instance();
-    if (dpf_) {
-      // To delete a participant, all domain entities must have been already deleted.
-      DDS::ReturnCode_t local_ret = dpf_->delete_participant(participant);
-      if (DDS::RETCODE_OK != local_ret) {
-        RMW_SET_ERROR_MSG("failed to delete participant");
-        ret = RMW_RET_ERROR;
-      }
-    } else {
-      RMW_SET_ERROR_MSG("failed to get participant factory");
-      ret = RMW_RET_ERROR;
-    }
-  } else {
-    RMW_SET_ERROR_MSG("failed to delete contained entities of participant");
-    ret = RMW_RET_ERROR;
+  if (nullptr == node_info) {
+    RMW_SET_ERROR_MSG("node info handle is null");
+    return RMW_RET_ERROR;
+  }
+  if (nullptr == node_info->participant) {
+    RMW_SET_ERROR_MSG("node internal participant is invalid");
+    return RMW_RET_ERROR;
   }
 
-  RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-    node_info->publisher_listener->~CustomPublisherListener(), CustomPublisherListener);
-  rmw_free(node_info->publisher_listener);
-
-  RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-    node_info->subscriber_listener->~CustomSubscriberListener(), CustomSubscriberListener);
-  rmw_free(node_info->subscriber_listener);
-
-  rmw_ret_t local_ret =
-    destroy_guard_condition(implementation_identifier, node_info->graph_guard_condition);
-  if (local_ret != RMW_RET_OK) {
-    if (ret != RMW_RET_OK) {
-      RMW_SAFE_FWRITE_TO_STDERR(
-        "Failed to delete graph guard condition after function: '"
-        RCUTILS_STRINGIFY(__function__) "' failed.\n");
-    } else {
-      RMW_SET_ERROR_MSG("failed to delete graph guard condition");
-      ret = RMW_RET_ERROR;
-    }
+  if (node_info->participant->assert_liveliness() != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to assert liveliness of participant");
+    return RMW_RET_ERROR;
   }
 
-  rmw_free(node_info);
-  rmw_free(const_cast<char *>(node->name));
-  rmw_free(const_cast<char *>(node->namespace_));
-  rmw_node_free(node);
-  return ret;
+  return RMW_RET_OK;
 }
 
 RMW_CONNEXT_SHARED_CPP_PUBLIC

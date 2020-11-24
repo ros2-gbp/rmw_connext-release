@@ -18,7 +18,6 @@
 
 import argparse
 import re
-import sys
 
 # regular expression / pattern for patch header
 _hdr_pat = re.compile(r'^@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@.*$')
@@ -55,11 +54,6 @@ def apply_patch(s, patch):
                 line = p[i]
                 i += 1
             if len(line) > 0:
-                if line[0] == ' ':
-                    # ensure that any unmodified line is the same
-                    # in the input file and in the patch file
-                    assert s[sl] == line[1:], \
-                        "s[%d] '%s' != line[1:] '%s'" % (sl, s[sl], line[1:])
                 if line[0] == sign or line[0] == ' ':
                     t += line[1:]
                 sl += (line[0] != sign)
@@ -80,16 +74,7 @@ for i, p, o in zip(args.input, args.patch, args.out):
     try:
         content_out = apply_patch(content_in, content_patch)
     except Exception:
-        print(
-            f'Failed to generate "{o}" using input "{i}" and patch "{p}"',
-            file=sys.stderr,
-        )
-        print('---------input file---------', file=sys.stderr)
-        print(content_in, file=sys.stderr)
-        print('----------------------------', file=sys.stderr)
-        print('---------patch file---------', file=sys.stderr)
-        print(content_patch, file=sys.stderr)
-        print('----------------------------', file=sys.stderr)
+        print(i, p, o)
         raise
     with open(o, 'w') as h:
         h.write(content_out)

@@ -36,6 +36,7 @@ struct ConnextStaticSubscriberInfo : ConnextCustomEventInfo
   ConnextSubscriberListener * listener_;
   DDS::DataReader * topic_reader_;
   DDS::ReadCondition * read_condition_;
+  bool ignore_local_publications;
   const message_type_support_callbacks_t * callbacks_;
   /// Remap the specific RTI Connext DDS DataReader Status to a generic RMW status type.
   /**

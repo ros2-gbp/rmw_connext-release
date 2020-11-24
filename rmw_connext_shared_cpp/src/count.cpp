@@ -19,8 +19,6 @@
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "rmw/error_handling.h"
-#include "rmw/impl/cpp/macros.hpp"
-#include "rmw/validate_full_topic_name.h"
 
 rmw_ret_t
 count_publishers(
@@ -29,26 +27,32 @@ count_publishers(
   const char * topic_name,
   size_t * count)
 {
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    implementation_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
-  int validation_result = RMW_TOPIC_VALID;
-  rmw_ret_t ret = rmw_validate_full_topic_name(topic_name, &validation_result, nullptr);
-  if (RMW_RET_OK != ret) {
-    return ret;
+  if (!node) {
+    RMW_SET_ERROR_MSG("node handle is null");
+    return RMW_RET_ERROR;
   }
-  if (RMW_TOPIC_VALID != validation_result) {
-    const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("topic_name argument is invalid: %s", reason);
-    return RMW_RET_INVALID_ARGUMENT;
+  if (node->implementation_identifier != implementation_identifier) {
+    RMW_SET_ERROR_MSG("node handle is not from this rmw implementation");
+    return RMW_RET_ERROR;
   }
-  RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+  if (!topic_name) {
+    RMW_SET_ERROR_MSG("topic name is null");
+    return RMW_RET_ERROR;
+  }
+  if (!count) {
+    RMW_SET_ERROR_MSG("count handle is null");
+    return RMW_RET_ERROR;
+  }
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
+  if (!node_info) {
+    RMW_SET_ERROR_MSG("node info handle is null");
+    return RMW_RET_ERROR;
+  }
+  if (!node_info->publisher_listener) {
+    RMW_SET_ERROR_MSG("publisher listener handle is null");
+    return RMW_RET_ERROR;
+  }
 
   *count = node_info->publisher_listener->count_topic(topic_name);
 
@@ -62,26 +66,32 @@ count_subscribers(
   const char * topic_name,
   size_t * count)
 {
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    implementation_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
-  int validation_result = RMW_TOPIC_VALID;
-  rmw_ret_t ret = rmw_validate_full_topic_name(topic_name, &validation_result, nullptr);
-  if (RMW_RET_OK != ret) {
-    return ret;
+  if (!node) {
+    RMW_SET_ERROR_MSG("node handle is null");
+    return RMW_RET_ERROR;
   }
-  if (RMW_TOPIC_VALID != validation_result) {
-    const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("topic_name argument is invalid: %s", reason);
-    return RMW_RET_INVALID_ARGUMENT;
+  if (node->implementation_identifier != implementation_identifier) {
+    RMW_SET_ERROR_MSG("node handle is not from this rmw implementation");
+    return RMW_RET_ERROR;
   }
-  RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+  if (!topic_name) {
+    RMW_SET_ERROR_MSG("topic name is null");
+    return RMW_RET_ERROR;
+  }
+  if (!count) {
+    RMW_SET_ERROR_MSG("count handle is null");
+    return RMW_RET_ERROR;
+  }
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
+  if (!node_info) {
+    RMW_SET_ERROR_MSG("node info handle is null");
+    return RMW_RET_ERROR;
+  }
+  if (!node_info->subscriber_listener) {
+    RMW_SET_ERROR_MSG("subscriber listener handle is null");
+    return RMW_RET_ERROR;
+  }
 
   *count = node_info->subscriber_listener->count_topic(topic_name);
 

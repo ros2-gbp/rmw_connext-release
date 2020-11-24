@@ -25,18 +25,31 @@ extern "C"
 rmw_ret_t
 rmw_take_response(
   const rmw_client_t * client,
-  rmw_service_info_t * request_header,
+  rmw_request_id_t * request_header,
   void * ros_response,
   bool * taken)
 {
-  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  if (!client) {
+    RMW_SET_ERROR_MSG("client handle is null");
+    return RMW_RET_ERROR;
+  }
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    client,
+    client handle,
     client->implementation_identifier, rti_connext_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_ARGUMENT_FOR_NULL(request_header, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
+    return RMW_RET_ERROR)
+
+  if (!request_header) {
+    RMW_SET_ERROR_MSG("ros request header handle is null");
+    return RMW_RET_ERROR;
+  }
+  if (!ros_response) {
+    RMW_SET_ERROR_MSG("ros response handle is null");
+    return RMW_RET_ERROR;
+  }
+  if (!taken) {
+    RMW_SET_ERROR_MSG("taken handle is null");
+    return RMW_RET_ERROR;
+  }
 
   ConnextStaticClientInfo * client_info =
     static_cast<ConnextStaticClientInfo *>(client->data);
@@ -68,13 +81,23 @@ rmw_send_response(
   rmw_request_id_t * request_header,
   void * ros_response)
 {
-  RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  if (!service) {
+    RMW_SET_ERROR_MSG("service handle is null");
+    return RMW_RET_ERROR;
+  }
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    service,
+    service handle,
     service->implementation_identifier, rti_connext_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_ARGUMENT_FOR_NULL(request_header, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
+    return RMW_RET_ERROR)
+
+  if (!request_header) {
+    RMW_SET_ERROR_MSG("ros request header handle is null");
+    return RMW_RET_ERROR;
+  }
+  if (!ros_response) {
+    RMW_SET_ERROR_MSG("ros response handle is null");
+    return RMW_RET_ERROR;
+  }
 
   ConnextStaticServiceInfo * service_info =
     static_cast<ConnextStaticServiceInfo *>(service->data);

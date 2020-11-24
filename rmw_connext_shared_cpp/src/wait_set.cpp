@@ -135,11 +135,14 @@ fail:
 rmw_ret_t
 destroy_wait_set(const char * implementation_identifier, rmw_wait_set_t * wait_set)
 {
-  RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_ERROR);
+  if (!wait_set) {
+    RMW_SET_ERROR_MSG("wait set handle is null");
+    return RMW_RET_ERROR;
+  }
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     wait_set handle,
     wait_set->implementation_identifier, implementation_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
+    return RMW_RET_ERROR)
 
   auto result = RMW_RET_OK;
   ConnextWaitSetInfo * wait_set_info = static_cast<ConnextWaitSetInfo *>(wait_set->data);

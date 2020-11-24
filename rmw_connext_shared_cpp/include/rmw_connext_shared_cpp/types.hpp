@@ -26,7 +26,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 #include "rmw/rmw.h"
 #include "topic_cache.hpp"
@@ -35,8 +34,6 @@
 
 
 enum EntityType {Publisher, Subscriber};
-
-using DDSTopicEndpointInfo = TopicCache<DDS::GUID_t>::TopicInfo;
 
 class CustomDataReaderListener
   : public DDS::DataReaderListener
@@ -50,65 +47,50 @@ public:
   {}
 
   RMW_CONNEXT_SHARED_CPP_PUBLIC
-  bool add_information(
+  virtual void add_information(
     const DDS::GUID_t & participant_guid,
     const DDS::GUID_t & guid,
     const std::string & topic_name,
     const std::string & type_name,
-    const rmw_qos_profile_t & qos_profile,
     EntityType entity_type);
 
   RMW_CONNEXT_SHARED_CPP_PUBLIC
-  bool remove_information(
+  virtual void remove_information(
     const DDS::GUID_t & guid,
     EntityType entity_type);
 
-  RMW_CONNEXT_SHARED_CPP_PUBLIC
-  bool add_information(
+  virtual void add_information(
     const DDS::InstanceHandle_t & participant_instance_handle,
     const DDS::InstanceHandle_t & instance_handle,
     const std::string & topic_name,
     const std::string & type_name,
-    const rmw_qos_profile_t & qos_profile,
     EntityType entity_type);
 
   RMW_CONNEXT_SHARED_CPP_PUBLIC
-  bool remove_information(
+  virtual void remove_information(
     const DDS::InstanceHandle_t & instance_handle,
     EntityType entity_type);
 
   RMW_CONNEXT_SHARED_CPP_PUBLIC
-  bool trigger_graph_guard_condition();
+  virtual void trigger_graph_guard_condition();
 
-  RMW_CONNEXT_SHARED_CPP_PUBLIC
-  size_t count_topic(const std::string & topic_name);
+  size_t count_topic(const char * topic_name);
 
-  RMW_CONNEXT_SHARED_CPP_PUBLIC
-  void fill_topic_endpoint_infos(
-    const std::string & topic_name,
-    bool no_mangle,
-    std::vector<const DDSTopicEndpointInfo *> & topic_endpoint_infos);
-
-  RMW_CONNEXT_SHARED_CPP_PUBLIC
   void fill_topic_names_and_types(
     bool no_demangle,
     std::map<std::string, std::set<std::string>> & topic_names_to_types);
 
-  RMW_CONNEXT_SHARED_CPP_PUBLIC
   void fill_service_names_and_types(
     std::map<std::string, std::set<std::string>> & services);
 
-  RMW_CONNEXT_SHARED_CPP_PUBLIC
   void fill_topic_names_and_types_by_guid(
     bool no_demangle,
     std::map<std::string, std::set<std::string>> & topic_names_to_types_by_guid,
     DDS_GUID_t & participant_guid);
 
-  RMW_CONNEXT_SHARED_CPP_PUBLIC
   void fill_service_names_and_types_by_guid(
     std::map<std::string, std::set<std::string>> & services,
-    DDS_GUID_t & participant_guid,
-    const std::string & suffix);
+    DDS_GUID_t & participant_guid);
 
 protected:
   std::mutex mutex_;
