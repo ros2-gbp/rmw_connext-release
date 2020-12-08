@@ -20,15 +20,14 @@
 #include "rmw/rmw.h"
 #include "rmw/validate_full_topic_name.h"
 
-#include "rmw_connext_shared_cpp/create_topic.hpp"
 #include "rmw_connext_shared_cpp/qos.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "rmw_connext_cpp/identifier.hpp"
 
-#include "connext_static_subscriber_info.hpp"
 #include "process_topic_and_service_names.hpp"
 #include "type_support_common.hpp"
+#include "rmw_connext_cpp/connext_static_subscriber_info.hpp"
 
 // include patched generated code from the build folder
 #include "connext_static_serialized_dataSupport.h"
@@ -111,6 +110,7 @@ rmw_create_subscription(
   DDS::ReturnCode_t status;
   DDS::Subscriber * dds_subscriber = nullptr;
   DDS::Topic * topic = nullptr;
+  DDS::TopicDescription * topic_description = nullptr;
   DDS::DataReader * topic_reader = nullptr;
   DDS::ReadCondition * read_condition = nullptr;
   void * info_buf = nullptr;
@@ -136,11 +136,11 @@ rmw_create_subscription(
     goto fail;
   }
   // This is a non-standard RTI Connext function
-  // It allows to register an external type to a static data reader
-  // In this case, we register the custom message type to a data reader,
-  // which only subscribes DDS_Octets
-  // The purpose of this is to receive only raw data DDS_Octets over the wire,
-  // subscribe the topic however with a type of the message, e.g. std_msgs::msg::dds_::String
+  // It allows to register an external type to a static data writer
+  // In this case, we register the custom message type to a data writer,
+  // which only publishes DDS_Octets
+  // The purpose of this is to send only raw data DDS_Octets over the wire,
+  // advertise the topic however with a type of the message, e.g. std_msgs::msg::dds_::String
   status = ConnextStaticSerializedDataSupport_register_external_type(
     participant, type_name.c_str(), type_code);
   if (status != DDS::RETCODE_OK) {
@@ -181,19 +181,37 @@ rmw_create_subscription(
     goto fail;
   }
 
-  topic = rmw_connext_shared_cpp::create_topic(node, topic_name, topic_str, type_name.c_str());
-  if (!topic) {
-    // error already set
-    goto fail;
-  }
+  topic_description = participant->lookup_topicdescription(topic_str);
+  if (!topic_description) {
+    DDS::TopicQos default_topic_qos;
+    status = participant->get_default_topic_qos(default_topic_qos);
+    if (status != DDS::RETCODE_OK) {
+      RMW_SET_ERROR_MSG("failed to get default topic qos");
+      goto fail;
+    }
 
-  if (!get_datareader_qos(participant, *qos_profile, topic_str, datareader_qos)) {
+    topic = participant->create_topic(
+      topic_str, type_name.c_str(),
+      default_topic_qos, NULL, DDS::STATUS_MASK_NONE);
+    if (!topic) {
+      RMW_SET_ERROR_MSG("failed to create topic");
+      goto fail;
+    }
+  } else {
+    DDS::Duration_t timeout = DDS::Duration_t::from_seconds(0);
+    topic = participant->find_topic(topic_str, timeout);
+    if (!topic) {
+      RMW_SET_ERROR_MSG("failed to find topic");
+      goto fail;
+    }
+  }
+  DDS::String_free(topic_str);
+  topic_str = nullptr;
+
+  if (!get_datareader_qos(participant, *qos_profile, datareader_qos)) {
     // error string was set within the function
     goto fail;
   }
-
-  DDS::String_free(topic_str);
-  topic_str = nullptr;
 
   topic_reader = dds_subscriber->create_datareader(
     topic, datareader_qos,
@@ -219,7 +237,6 @@ rmw_create_subscription(
   // Use a placement new to construct the ConnextStaticSubscriberInfo in the preallocated buffer.
   RMW_TRY_PLACEMENT_NEW(subscriber_info, info_buf, goto fail, ConnextStaticSubscriberInfo, )
   info_buf = nullptr;  // Only free the subscriber_info pointer; don't need the buf pointer anymore.
-  subscriber_info->topic_ = topic;
   subscriber_info->dds_subscriber_ = dds_subscriber;
   subscriber_info->topic_reader_ = topic_reader;
   subscriber_info->read_condition_ = read_condition;
@@ -299,14 +316,6 @@ fail:
     if (participant->delete_subscriber(dds_subscriber) != DDS::RETCODE_OK) {
       std::stringstream ss;
       std::cerr << "leaking subscriber while handling failure at " <<
-        __FILE__ << ":" << __LINE__ << '\n';
-      (std::cerr << ss.str()).flush();
-    }
-  }
-  if (topic) {
-    if (participant->delete_topic(topic) != DDS::RETCODE_OK) {
-      std::stringstream ss;
-      std::cerr << "leaking topic while handling failure at " <<
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
     }
@@ -442,15 +451,6 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
       ret = RMW_RET_ERROR;
     } else {
       RMW_SAFE_FWRITE_TO_STDERR("failed to delete subscriber\n");
-    }
-  }
-
-  if (participant->delete_topic(subscriber_info->topic_) != DDS::RETCODE_OK) {
-    if (RMW_RET_OK == ret) {
-      RMW_SET_ERROR_MSG("failed to delete topic");
-      ret = RMW_RET_ERROR;
-    } else {
-      RMW_SAFE_FWRITE_TO_STDERR("failed to delete topic\n");
     }
   }
 

@@ -2,92 +2,38 @@
 Changelog for package rmw_connext_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-3.5.0 (2020-12-08)
+1.0.3 (2020-12-08)
 ------------------
-* typo fix for ConnextStaticSerializedDataSupport of subscription. (`#475 <https://github.com/ros2/rmw_connext/issues/475>`_)
-* Allow more flexible usage of XML QoS profiles (`#460 <https://github.com/ros2/rmw_connext/issues/460>`_)
-* Update maintainers (`#468 <https://github.com/ros2/rmw_connext/issues/468>`_)
-* Contributors: Alejandro Hernández Cordero, Ivan Santiago Paunovic, tomoya
+* Fix wrong error messages (`#458 <https://github.com/ros2/rmw_connext/issues/458>`_) (`#478 <https://github.com/ros2/rmw_connext/issues/478>`_)
+* Update maintainers (`#468 <https://github.com/ros2/rmw_connext/issues/468>`_) (`#470 <https://github.com/ros2/rmw_connext/issues/470>`_)
+* Contributors: Alejandro Hernández Cordero, Ivan Santiago Paunovic
 
-3.4.2 (2020-09-29)
+1.0.2 (2020-10-15)
 ------------------
 * Return RMW_RET_UNSUPPORTED in rmw_get_serialized_message_size (`#467 <https://github.com/ros2/rmw_connext/issues/467>`_)
-* Returned RMW_RET_INCORRECT_RMW_IMPLEMENTATION in rmw_service_server_is_available (`#466 <https://github.com/ros2/rmw_connext/issues/466>`_)
+* returned RMW_RET_INCORRECT_RMW_IMPLEMENTATION in rmw_service_server_is_available (`#466 <https://github.com/ros2/rmw_connext/issues/466>`_)
 * Update service/client request/response API error returns (`#465 <https://github.com/ros2/rmw_connext/issues/465>`_)
-* Contributors: Alejandro Hernández Cordero, Jose Tomas Lorente
-
-3.4.1 (2020-09-26)
-------------------
-* Updated publisher/subscription allocation and wait set API return codes. (`#463 <https://github.com/ros2/rmw_connext/issues/463>`_)
+* Updated rmw\_* return codes (`#463 <https://github.com/ros2/rmw_connext/issues/463>`_)
 * Update service/client construction/destruction API return codes. (`#464 <https://github.com/ros2/rmw_connext/issues/464>`_)
-* Contributors: Alejandro Hernández Cordero, Michel Hidalgo
-
-3.4.0 (2020-09-23)
-------------------
-* Updated returns on rmw_take_serialized_with_info(). (`#462 <https://github.com/ros2/rmw_connext/issues/462>`_)
+* Updated returns on rmw_take_serialized_with_info (`#462 <https://github.com/ros2/rmw_connext/issues/462>`_)
 * Update gid API return codes. (`#461 <https://github.com/ros2/rmw_connext/issues/461>`_)
-* Contributors: Jose Tomas Lorente, Michel Hidalgo
-
-3.3.0 (2020-09-18)
-------------------
-* Fix wrong error messages (`#458 <https://github.com/ros2/rmw_connext/issues/458>`_)
-* Update rmw_take_serialized() and rmw_take_with_error_info() error returns (`#456 <https://github.com/ros2/rmw_connext/issues/456>`_)
-* Update rmw_take() error returns  (`#454 <https://github.com/ros2/rmw_connext/issues/454>`_)
+* updated error returns (`#456 <https://github.com/ros2/rmw_connext/issues/456>`_)
+* Updated error returns on rmw_take (`#454 <https://github.com/ros2/rmw_connext/issues/454>`_)
 * Update rmw_publish() error returns (`#452 <https://github.com/ros2/rmw_connext/issues/452>`_)
 * Update rmw_publish_serialized_message() error returns (`#453 <https://github.com/ros2/rmw_connext/issues/453>`_)
-* Contributors: Ivan Santiago Paunovic, Jose Tomas Lorente, Lobotuerk
-
-3.2.0 (2020-08-28)
-------------------
 * Ensure compliant matched pub/sub count API. (`#451 <https://github.com/ros2/rmw_connext/issues/451>`_)
-* Contributors: Michel Hidalgo
-
-3.1.0 (2020-08-06)
-------------------
 * Ensure compliant subscription API. (`#450 <https://github.com/ros2/rmw_connext/issues/450>`_)
-* Contributors: Michel Hidalgo
-
-3.0.0 (2020-08-03)
-------------------
-* Remove internal rmw_connext_cpp headers from public API. (`#447 <https://github.com/ros2/rmw_connext/issues/447>`_)
-  * Update rmw_connext_cpp after internal headers relocation.
-  * Relocate internal rmw_connext_cpp headers.
 * Decouple rmw_destroy_publisher() outcome from global RMW error state. (`#449 <https://github.com/ros2/rmw_connext/issues/449>`_)
-* Ensure compliant publisher API. (`#445 <https://github.com/ros2/rmw_connext/issues/445>`_)
-* Avoid leaking DDS::Topic objects. (`#444 <https://github.com/ros2/rmw_connext/issues/444>`_)
-* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
-
-2.2.0 (2020-07-22)
-------------------
-* Set context actual domain id (`#443 <https://github.com/ros2/rmw_connext/issues/443>`_)
-* Contributors: Ivan Santiago Paunovic
-
-2.1.0 (2020-07-20)
-------------------
-* Fix topic creation race condition (`#442 <https://github.com/ros2/rmw_connext/issues/442>`_)
-* Ensure compliant node construction/destruction API (`#439 <https://github.com/ros2/rmw_connext/issues/439>`_)
-* Improve error message when failing to create topic (`#441 <https://github.com/ros2/rmw_connext/issues/441>`_)
-* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
-
-2.0.0 (2020-07-08)
-------------------
-* Remove domain_id and localhost_only from node API (`#438 <https://github.com/ros2/rmw_connext/issues/438>`_)
+* Ensure compliant publisher API (`#445 <https://github.com/ros2/rmw_connext/issues/445>`_)
+* Ensure compliant node construction/destruction API. (`#439 <https://github.com/ros2/rmw_connext/issues/439>`_)
 * Amend rmw_init() implementation: require enclave. (`#437 <https://github.com/ros2/rmw_connext/issues/437>`_)
-* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
-
-1.2.0 (2020-06-29)
-------------------
 * Ensure compliant init/shutdown API implementation. (`#432 <https://github.com/ros2/rmw_connext/issues/432>`_)
 * Ensure compliant init options API implementations. (`#431 <https://github.com/ros2/rmw_connext/issues/431>`_)
 * Finalize context if and only if it's shutdown (`#428 <https://github.com/ros2/rmw_connext/issues/428>`_)
-* Contributors: Michel Hidalgo
+* Contributors: Alejandro Hernández Cordero, Jose Tomas Lorente, Michel Hidalgo
 
-1.1.0 (2020-06-18)
+1.0.1 (2020-07-07)
 ------------------
-* Add support to RMW_EVENT_MESSAGE_LOST (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
-* Allow RMW events to map to more than one DDS event (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
-* Revert the idl_pp code to try up to 10 times. (`#425 <https://github.com/ros2/rmw_connext/issues/425>`_)
-* Contributors: Chris Lalancette, Ivan Santiago Paunovic
 
 1.0.0 (2020-05-12)
 ------------------

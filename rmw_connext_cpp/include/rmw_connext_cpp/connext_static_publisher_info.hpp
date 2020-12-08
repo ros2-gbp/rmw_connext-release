@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONNEXT_STATIC_PUBLISHER_INFO_HPP_
-#define CONNEXT_STATIC_PUBLISHER_INFO_HPP_
+#ifndef RMW_CONNEXT_CPP__CONNEXT_STATIC_PUBLISHER_INFO_HPP_
+#define RMW_CONNEXT_CPP__CONNEXT_STATIC_PUBLISHER_INFO_HPP_
 
 #include <atomic>
 
@@ -36,7 +36,6 @@ struct ConnextStaticPublisherInfo : ConnextCustomEventInfo
   DDS::Publisher * dds_publisher_;
   ConnextPublisherListener * listener_;
   DDS::DataWriter * topic_writer_;
-  DDS::Topic * topic_;
   const message_type_support_callbacks_t * callbacks_;
   rmw_gid_t publisher_gid;
 
@@ -46,7 +45,7 @@ struct ConnextStaticPublisherInfo : ConnextCustomEventInfo
    * \param mask input status mask
    * \param event
    */
-  rmw_ret_t get_status(rmw_event_type_t event_type, void * event) override;
+  rmw_ret_t get_status(DDS::StatusMask mask, void * event) override;
 
   /// Return the topic writer entity for this publisher.
   /**
@@ -74,4 +73,4 @@ private:
   std::atomic<std::size_t> current_count_;
 };
 
-#endif  // CONNEXT_STATIC_PUBLISHER_INFO_HPP_
+#endif  // RMW_CONNEXT_CPP__CONNEXT_STATIC_PUBLISHER_INFO_HPP_
