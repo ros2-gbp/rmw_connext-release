@@ -18,15 +18,17 @@
 #include "rmw/error_handling.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/rmw.h"
+#include "rmw/validate_full_topic_name.h"
 
+#include "rmw_connext_shared_cpp/create_topic.hpp"
 #include "rmw_connext_shared_cpp/qos.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "rmw_connext_cpp/identifier.hpp"
 
+#include "connext_static_subscriber_info.hpp"
 #include "process_topic_and_service_names.hpp"
 #include "type_support_common.hpp"
-#include "rmw_connext_cpp/connext_static_subscriber_info.hpp"
 
 // include patched generated code from the build folder
 #include "connext_static_serialized_dataSupport.h"
@@ -41,7 +43,7 @@ extern "C"
 rmw_ret_t
 rmw_init_subscription_allocation(
   const rosidl_message_type_support_t * type_support,
-  const rosidl_message_bounds_t * message_bounds,
+  const rosidl_runtime_c__Sequence__bound * message_bounds,
   rmw_subscription_allocation_t * allocation)
 {
   // Unused in current implementation.
@@ -49,7 +51,7 @@ rmw_init_subscription_allocation(
   (void) message_bounds;
   (void) allocation;
   RMW_SET_ERROR_MSG("unimplemented");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -58,7 +60,7 @@ rmw_fini_subscription_allocation(rmw_subscription_allocation_t * allocation)
   // Unused in current implementation.
   (void) allocation;
   RMW_SET_ERROR_MSG("unimplemented");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_subscription_t *
@@ -69,44 +71,38 @@ rmw_create_subscription(
   const rmw_qos_profile_t * qos_profile,
   const rmw_subscription_options_t * subscription_options)
 {
-  if (!node) {
-    RMW_SET_ERROR_MSG("node handle is null");
-    return NULL;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node handle,
-    node->implementation_identifier, rti_connext_identifier,
-    return NULL)
-
-  RMW_CONNEXT_EXTRACT_MESSAGE_TYPESUPPORT(type_supports, type_support, NULL)
-
-  if (!qos_profile) {
-    RMW_SET_ERROR_MSG("qos_profile is null");
+    node->implementation_identifier,
+    rti_connext_identifier,
+    return nullptr);
+  RMW_CONNEXT_EXTRACT_MESSAGE_TYPESUPPORT(type_supports, type_support, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
+  if (0 == strlen(topic_name)) {
+    RMW_SET_ERROR_MSG("topic_name argument is an empty string");
     return nullptr;
   }
-
-  if (!subscription_options) {
-    RMW_SET_ERROR_MSG("subscription_options is null");
-    return nullptr;
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
+  if (!qos_profile->avoid_ros_namespace_conventions) {
+    int validation_result = RMW_TOPIC_VALID;
+    rmw_ret_t ret = rmw_validate_full_topic_name(topic_name, &validation_result, nullptr);
+    if (RMW_RET_OK != ret) {
+      return nullptr;
+    }
+    if (RMW_TOPIC_VALID != validation_result) {
+      const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid topic name: %s", reason);
+      return nullptr;
+    }
   }
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
-  if (!node_info) {
-    RMW_SET_ERROR_MSG("node info handle is null");
-    return NULL;
-  }
   auto participant = static_cast<DDS::DomainParticipant *>(node_info->participant);
-  if (!participant) {
-    RMW_SET_ERROR_MSG("participant handle is null");
-    return NULL;
-  }
-
   const message_type_support_callbacks_t * callbacks =
     static_cast<const message_type_support_callbacks_t *>(type_support->data);
-  if (!callbacks) {
-    RMW_SET_ERROR_MSG("callbacks handle is null");
-    return NULL;
-  }
+
   std::string type_name = _create_type_name(callbacks);
   // Past this point, a failure results in unrolling code in the goto fail block.
   DDS::TypeCode * type_code = nullptr;
@@ -115,7 +111,6 @@ rmw_create_subscription(
   DDS::ReturnCode_t status;
   DDS::Subscriber * dds_subscriber = nullptr;
   DDS::Topic * topic = nullptr;
-  DDS::TopicDescription * topic_description = nullptr;
   DDS::DataReader * topic_reader = nullptr;
   DDS::ReadCondition * read_condition = nullptr;
   void * info_buf = nullptr;
@@ -124,6 +119,7 @@ rmw_create_subscription(
   ConnextStaticSubscriberInfo * subscriber_info = nullptr;
   rmw_subscription_t * subscription = nullptr;
   std::string mangled_name;
+  rmw_qos_profile_t actual_qos_profile;
 
   char * topic_str = nullptr;
 
@@ -140,11 +136,11 @@ rmw_create_subscription(
     goto fail;
   }
   // This is a non-standard RTI Connext function
-  // It allows to register an external type to a static data writer
-  // In this case, we register the custom message type to a data writer,
-  // which only publishes DDS_Octets
-  // The purpose of this is to send only raw data DDS_Octets over the wire,
-  // advertise the topic however with a type of the message, e.g. std_msgs::msg::dds_::String
+  // It allows to register an external type to a static data reader
+  // In this case, we register the custom message type to a data reader,
+  // which only subscribes DDS_Octets
+  // The purpose of this is to receive only raw data DDS_Octets over the wire,
+  // subscribe the topic however with a type of the message, e.g. std_msgs::msg::dds_::String
   status = ConnextStaticSerializedDataSupport_register_external_type(
     participant, type_name.c_str(), type_code);
   if (status != DDS::RETCODE_OK) {
@@ -185,37 +181,19 @@ rmw_create_subscription(
     goto fail;
   }
 
-  topic_description = participant->lookup_topicdescription(topic_str);
-  if (!topic_description) {
-    DDS::TopicQos default_topic_qos;
-    status = participant->get_default_topic_qos(default_topic_qos);
-    if (status != DDS::RETCODE_OK) {
-      RMW_SET_ERROR_MSG("failed to get default topic qos");
-      goto fail;
-    }
-
-    topic = participant->create_topic(
-      topic_str, type_name.c_str(),
-      default_topic_qos, NULL, DDS::STATUS_MASK_NONE);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to create topic");
-      goto fail;
-    }
-  } else {
-    DDS::Duration_t timeout = DDS::Duration_t::from_seconds(0);
-    topic = participant->find_topic(topic_str, timeout);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to find topic");
-      goto fail;
-    }
+  topic = rmw_connext_shared_cpp::create_topic(node, topic_name, topic_str, type_name.c_str());
+  if (!topic) {
+    // error already set
+    goto fail;
   }
-  DDS::String_free(topic_str);
-  topic_str = nullptr;
 
-  if (!get_datareader_qos(participant, *qos_profile, datareader_qos)) {
+  if (!get_datareader_qos(participant, *qos_profile, topic_str, datareader_qos)) {
     // error string was set within the function
     goto fail;
   }
+
+  DDS::String_free(topic_str);
+  topic_str = nullptr;
 
   topic_reader = dds_subscriber->create_datareader(
     topic, datareader_qos,
@@ -241,6 +219,7 @@ rmw_create_subscription(
   // Use a placement new to construct the ConnextStaticSubscriberInfo in the preallocated buffer.
   RMW_TRY_PLACEMENT_NEW(subscriber_info, info_buf, goto fail, ConnextStaticSubscriberInfo, )
   info_buf = nullptr;  // Only free the subscriber_info pointer; don't need the buf pointer anymore.
+  subscriber_info->topic_ = topic;
   subscriber_info->dds_subscriber_ = dds_subscriber;
   subscriber_info->topic_reader_ = topic_reader;
   subscriber_info->read_condition_ = read_condition;
@@ -262,16 +241,22 @@ rmw_create_subscription(
   subscription->options = *subscription_options;
 
   if (!qos_profile->avoid_ros_namespace_conventions) {
-    mangled_name =
-      topic_reader->get_topicdescription()->get_name();
+    mangled_name = topic_reader->get_topicdescription()->get_name();
   } else {
     mangled_name = topic_name;
   }
+  status = topic_reader->get_qos(datareader_qos);
+  if (DDS::RETCODE_OK != status) {
+    RMW_SET_ERROR_MSG("topic_reader can't get data reader qos policies");
+    goto fail;
+  }
+  dds_qos_to_rmw_qos(datareader_qos, &actual_qos_profile);
   node_info->subscriber_listener->add_information(
     node_info->participant->get_instance_handle(),
     dds_subscriber->get_instance_handle(),
     mangled_name,
     type_name,
+    actual_qos_profile,
     EntityType::Subscriber);
   node_info->subscriber_listener->trigger_graph_guard_condition();
 
@@ -318,6 +303,14 @@ fail:
       (std::cerr << ss.str()).flush();
     }
   }
+  if (topic) {
+    if (participant->delete_topic(topic) != DDS::RETCODE_OK) {
+      std::stringstream ss;
+      std::cerr << "leaking topic while handling failure at " <<
+        __FILE__ << ":" << __LINE__ << '\n';
+      (std::cerr << ss.str()).flush();
+    }
+  }
   if (subscriber_listener) {
     RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
       subscriber_listener->~ConnextSubscriberListener(), ConnextSubscriberListener)
@@ -348,15 +341,13 @@ rmw_subscription_count_matched_publishers(
   const rmw_subscription_t * subscription,
   size_t * publisher_count)
 {
-  if (!subscription) {
-    RMW_SET_ERROR_MSG("subscription handle is null");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-
-  if (!publisher_count) {
-    RMW_SET_ERROR_MSG("publisher_count is null");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
 
   auto info = static_cast<ConnextStaticSubscriberInfo *>(subscription->data);
   if (!info) {
@@ -379,18 +370,16 @@ rmw_subscription_get_actual_qos(
   rmw_qos_profile_t * qos)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
 
   auto info = static_cast<ConnextStaticSubscriberInfo *>(subscription->data);
-  if (!info) {
-    RMW_SET_ERROR_MSG("subscription internal data is invalid");
-    return RMW_RET_ERROR;
-  }
   DDS::DataReader * data_reader = info->topic_reader_;
-  if (!data_reader) {
-    RMW_SET_ERROR_MSG("subscription internal data reader is invalid");
-    return RMW_RET_ERROR;
-  }
+
   DDS::DataReaderQos dds_qos;
   DDS::ReturnCode_t status = data_reader->get_qos(dds_qos);
   if (DDS::RETCODE_OK != status) {
@@ -406,83 +395,91 @@ rmw_subscription_get_actual_qos(
 rmw_ret_t
 rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 {
-  if (!node) {
-    RMW_SET_ERROR_MSG("node handle is null");
-    return RMW_RET_ERROR;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node handle,
-    node->implementation_identifier, rti_connext_identifier,
-    return RMW_RET_ERROR)
-
-  if (!subscription) {
-    RMW_SET_ERROR_MSG("subscription handle is null");
-    return RMW_RET_ERROR;
-  }
+    node->implementation_identifier,
+    rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    subscription handle,
-    subscription->implementation_identifier, rti_connext_identifier,
-    return RMW_RET_ERROR)
+    subscription,
+    subscription->implementation_identifier,
+    rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
-  if (!node_info) {
-    RMW_SET_ERROR_MSG("node info handle is null");
-    return RMW_RET_ERROR;
-  }
   auto participant = static_cast<DDS::DomainParticipant *>(node_info->participant);
-  if (!participant) {
-    RMW_SET_ERROR_MSG("participant handle is null");
-    return RMW_RET_ERROR;
-  }
   // TODO(wjwwood): need to figure out when to unregister types with the participant.
-  auto result = RMW_RET_OK;
+
+  rmw_ret_t ret = RMW_RET_OK;
   ConnextStaticSubscriberInfo * subscriber_info =
     static_cast<ConnextStaticSubscriberInfo *>(subscription->data);
-  if (subscriber_info) {
-    node_info->subscriber_listener->remove_information(
-      subscriber_info->dds_subscriber_->get_instance_handle(), EntityType::Subscriber);
-    node_info->subscriber_listener->trigger_graph_guard_condition();
-    auto dds_subscriber = subscriber_info->dds_subscriber_;
-    if (dds_subscriber) {
-      auto topic_reader = subscriber_info->topic_reader_;
-      if (topic_reader) {
-        auto read_condition = subscriber_info->read_condition_;
-        if (read_condition) {
-          if (topic_reader->delete_readcondition(read_condition) != DDS::RETCODE_OK) {
-            RMW_SET_ERROR_MSG("failed to delete readcondition");
-            result = RMW_RET_ERROR;
-          }
-          subscriber_info->read_condition_ = nullptr;
-        }
-        if (dds_subscriber->delete_datareader(topic_reader) != DDS::RETCODE_OK) {
-          RMW_SET_ERROR_MSG("failed to delete datareader");
-          result = RMW_RET_ERROR;
-        }
-        subscriber_info->topic_reader_ = nullptr;
-      } else if (subscriber_info->read_condition_) {
-        RMW_SET_ERROR_MSG("cannot delete readcondition because the datareader is null");
-        result = RMW_RET_ERROR;
-      }
-      if (participant->delete_subscriber(dds_subscriber) != DDS::RETCODE_OK) {
-        RMW_SET_ERROR_MSG("failed to delete subscriber");
-        result = RMW_RET_ERROR;
-      }
-      subscriber_info->dds_subscriber_ = nullptr;
-    } else if (subscriber_info->topic_reader_) {
-      RMW_SET_ERROR_MSG("cannot delete datareader because the subscriber is null");
-      result = RMW_RET_ERROR;
+  node_info->subscriber_listener->remove_information(
+    subscriber_info->dds_subscriber_->get_instance_handle(), EntityType::Subscriber);
+  node_info->subscriber_listener->trigger_graph_guard_condition();
+  auto dds_subscriber = subscriber_info->dds_subscriber_;
+  auto topic_reader = subscriber_info->topic_reader_;
+  auto read_condition = subscriber_info->read_condition_;
+
+  if (topic_reader->delete_readcondition(read_condition) != DDS::RETCODE_OK) {
+    RMW_SET_ERROR_MSG("failed to delete readcondition");
+    ret = RMW_RET_ERROR;
+  }
+
+  if (dds_subscriber->delete_datareader(topic_reader) != DDS::RETCODE_OK) {
+    if (RMW_RET_OK == ret) {
+      RMW_SET_ERROR_MSG("failed to delete datareader");
+      ret = RMW_RET_ERROR;
+    } else {
+      RMW_SAFE_FWRITE_TO_STDERR("failed to delete datareader\n");
     }
+  }
+
+  if (participant->delete_subscriber(dds_subscriber) != DDS::RETCODE_OK) {
+    if (RMW_RET_OK == ret) {
+      RMW_SET_ERROR_MSG("failed to delete subscriber");
+      ret = RMW_RET_ERROR;
+    } else {
+      RMW_SAFE_FWRITE_TO_STDERR("failed to delete subscriber\n");
+    }
+  }
+
+  if (participant->delete_topic(subscriber_info->topic_) != DDS::RETCODE_OK) {
+    if (RMW_RET_OK == ret) {
+      RMW_SET_ERROR_MSG("failed to delete topic");
+      ret = RMW_RET_ERROR;
+    } else {
+      RMW_SAFE_FWRITE_TO_STDERR("failed to delete topic\n");
+    }
+  }
+
+  auto subscriber_listener = subscriber_info->listener_;
+  if (RMW_RET_OK == ret) {
+    RMW_TRY_DESTRUCTOR(
+      subscriber_listener->~ConnextSubscriberListener(),
+      ConnextSubscriberListener, ret = RMW_RET_ERROR);
+  } else {
+    RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+      subscriber_listener->~ConnextSubscriberListener(),
+      ConnextSubscriberListener);
+  }
+  rmw_free(subscriber_listener);
+
+  if (RMW_RET_OK == ret) {
     RMW_TRY_DESTRUCTOR(
       subscriber_info->~ConnextStaticSubscriberInfo(),
-      ConnextStaticSubscriberInfo, result = RMW_RET_ERROR)
-    rmw_free(subscriber_info);
-    subscription->data = nullptr;
+      ConnextStaticSubscriberInfo, ret = RMW_RET_ERROR);
+  } else {
+    RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+      subscriber_info->~ConnextStaticSubscriberInfo(),
+      ConnextStaticSubscriberInfo);
   }
-  if (subscription->topic_name) {
-    rmw_free(const_cast<char *>(subscription->topic_name));
-  }
+  rmw_free(subscriber_info);
+
+  rmw_free(const_cast<char *>(subscription->topic_name));
   rmw_subscription_free(subscription);
 
-  return result;
+  return ret;
 }
 }  // extern "C"

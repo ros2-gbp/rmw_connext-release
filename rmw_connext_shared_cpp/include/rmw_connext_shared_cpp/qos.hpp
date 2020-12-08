@@ -22,6 +22,7 @@
 
 #include "rmw/error_handling.h"
 #include "rmw/types.h"
+#include "rmw/incompatible_qos_events_statuses.h"
 
 #include "rmw_connext_shared_cpp/visibility_control.h"
 
@@ -30,6 +31,7 @@ bool
 get_datareader_qos(
   DDS::DomainParticipant * participant,
   const rmw_qos_profile_t & qos_profile,
+  const char * dds_topic_name,
   DDS::DataReaderQos & datareader_qos);
 
 RMW_CONNEXT_SHARED_CPP_PUBLIC
@@ -37,7 +39,12 @@ bool
 get_datawriter_qos(
   DDS::DomainParticipant * participant,
   const rmw_qos_profile_t & qos_profile,
+  const char * dds_topic_name,
   DDS::DataWriterQos & datawriter_qos);
+
+RMW_CONNEXT_SHARED_CPP_PUBLIC
+rmw_qos_policy_kind_t
+dds_qos_policy_to_rmw_qos_policy(DDS::QosPolicyId_t policy_id);
 
 template<typename AttributeT>
 void
@@ -55,6 +62,24 @@ extern template RMW_CONNEXT_SHARED_CPP_PUBLIC
 void
 dds_qos_to_rmw_qos<DDS::DataReaderQos>(
   const DDS::DataReaderQos & dds_qos,
+  rmw_qos_profile_t * qos);
+
+template<typename AttributeT>
+void
+dds_remote_qos_to_rmw_qos(
+  const AttributeT & dds_qos,
+  rmw_qos_profile_t * qos);
+
+extern template RMW_CONNEXT_SHARED_CPP_PUBLIC
+void
+dds_remote_qos_to_rmw_qos<DDS::PublicationBuiltinTopicData>(
+  const DDS::PublicationBuiltinTopicData & dds_qos,
+  rmw_qos_profile_t * qos);
+
+extern template RMW_CONNEXT_SHARED_CPP_PUBLIC
+void
+dds_remote_qos_to_rmw_qos<DDS::SubscriptionBuiltinTopicData>(
+  const DDS::SubscriptionBuiltinTopicData & dds_qos,
   rmw_qos_profile_t * qos);
 
 #endif  // RMW_CONNEXT_SHARED_CPP__QOS_HPP_

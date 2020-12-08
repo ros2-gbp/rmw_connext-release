@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.5)
 
 project(rmw_connext_cpp)
 
-set(CONNEXT_STATIC_DISABLE $ENV{CONNEXT_STATIC_DISABLE}
+if(DEFINED ENV{CONNEXT_STATIC_DISABLE})
+  set(disable_static_connext $ENV{CONNEXT_STATIC_DISABLE})
+else()
+  set(disable_static_connext FALSE)
+endif()
+set(CONNEXT_STATIC_DISABLE ${disable_static_connext}
   CACHE BOOL "If Connext Static should be disabled.")
 
 # Default to C++14
@@ -31,6 +36,7 @@ if(NOT Connext_FOUND OR CONNEXT_STATIC_DISABLE)
   return()
 endif()
 
+find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
 
 find_package(rosidl_typesupport_connext_c)
@@ -49,18 +55,19 @@ endif()
 
 find_package(rmw REQUIRED)
 find_package(rmw_connext_shared_cpp REQUIRED)
-find_package(rosidl_generator_c REQUIRED)
-find_package(rosidl_generator_cpp REQUIRED)
+find_package(rosidl_runtime_c REQUIRED)
+find_package(rosidl_runtime_cpp REQUIRED)
 
 include_directories(include)
 
 ament_export_include_directories(include)
 ament_export_dependencies(
+  rcpputils
   rcutils
   rmw
   rmw_connext_shared_cpp
-  rosidl_generator_c
-  rosidl_generator_cpp
+  rosidl_runtime_c
+  rosidl_runtime_cpp
   rosidl_typesupport_connext_c
   rosidl_typesupport_connext_cpp)
 
@@ -70,12 +77,6 @@ register_rmw_implementation(
 )
 
 # generate code for raw data
-set(_idl_pp "${Connext_DDSGEN}")
-if(NOT "${Connext_DDSGEN_SERVER}" STREQUAL "")
-  # use the code generator in server mode when available
-  # because it speeds up the code generation step significantly
-  set(_idl_pp "${Connext_DDSGEN_SERVER}")
-endif()
 set(generated_directory "${CMAKE_CURRENT_BINARY_DIR}/resources/generated")
 file(MAKE_DIRECTORY ${generated_directory})
 set(generated_files
@@ -88,9 +89,13 @@ set(generated_files
 )
 add_custom_command(
   OUTPUT ${generated_files}
-  COMMAND "${_idl_pp}" -language C++ -unboundedSupport "connext_static_serialized_data.idl" -d ${generated_directory}
+  # We *explicitly* do not use Connext_DDSGEN_SERVER here.  The other time we invoke the
+  # server is in rosidl_typesupport_connext_cpp, and that uses a different set of arguments.
+  # We don't want to accidentally connect to that other version of the server that might
+  # still be running.
+  COMMAND "${Connext_DDSGEN}" -language C++ -unboundedSupport "connext_static_serialized_data.idl" -d ${generated_directory}
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources"
-  COMMENT "Generating serialized type support for RTI Connext (using '${_idl_pp}')"
+  COMMENT "Generating serialized type support for RTI Connext (using '${Connext_DDSGEN}')"
   VERBATIM
 )
 
@@ -180,13 +185,15 @@ add_library(
   src/rmw_trigger_guard_condition.cpp
   src/rmw_wait.cpp
   src/rmw_wait_set.cpp
-  src/serialization_format.cpp)
+  src/serialization_format.cpp
+  src/rmw_get_topic_endpoint_info.cpp)
 ament_target_dependencies(rmw_connext_cpp
+  "rcpputils"
   "rcutils"
   "rmw"
   "rmw_connext_shared_cpp"
-  "rosidl_generator_c"
-  "rosidl_generator_cpp"
+  "rosidl_runtime_c"
+  "rosidl_runtime_cpp"
   "rosidl_typesupport_connext_c"
   "rosidl_typesupport_connext_cpp"
   "Connext")
@@ -212,7 +219,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_package()
+ament_package(CONFIG_EXTRAS "${PROJECT_NAME}-extras.cmake")
 
 install(
   DIRECTORY include/

@@ -16,15 +16,17 @@
 
 #include "rmw/allocators.h"
 #include "rmw/error_handling.h"
+#include "rmw/impl/cpp/macros.hpp"
 #include "rmw/rmw.h"
+#include "rmw/validate_full_topic_name.h"
 
 #include "rmw_connext_shared_cpp/qos.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "rmw_connext_cpp/identifier.hpp"
+#include "connext_static_service_info.hpp"
 #include "process_topic_and_service_names.hpp"
 #include "type_support_common.hpp"
-#include "rmw_connext_cpp/connext_static_service_info.hpp"
 
 // Uncomment this to get extra console output about discovery.
 // This affects code in this file, but there is a similar variable in:
@@ -40,20 +42,31 @@ rmw_create_service(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  if (!node) {
-    RMW_SET_ERROR_MSG("node handle is null");
-    return NULL;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node handle,
-    node->implementation_identifier, rti_connext_identifier,
-    return NULL)
-
-  RMW_CONNEXT_EXTRACT_SERVICE_TYPESUPPORT(type_supports, type_support, NULL)
-
-  if (!qos_profile) {
-    RMW_SET_ERROR_MSG("qos_profile is null");
+    node,
+    node->implementation_identifier,
+    rti_connext_identifier,
+    return NULL);
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
+  RMW_CONNEXT_EXTRACT_SERVICE_TYPESUPPORT(type_supports, type_support, NULL);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_name, nullptr);
+  if (0 == strlen(service_name)) {
+    RMW_SET_ERROR_MSG("service_name argument is an empty string");
     return nullptr;
+  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
+  if (!qos_profile->avoid_ros_namespace_conventions) {
+    int validation_result = RMW_TOPIC_VALID;
+    rmw_ret_t ret = rmw_validate_full_topic_name(service_name, &validation_result, nullptr);
+    if (RMW_RET_OK != ret) {
+      return nullptr;
+    }
+    if (RMW_TOPIC_VALID != validation_result) {
+      const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("service_name argument is invalid: %s", reason);
+      return nullptr;
+    }
   }
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
@@ -90,6 +103,7 @@ rmw_create_service(
   ConnextStaticServiceInfo * service_info = nullptr;
   rmw_service_t * service = nullptr;
   std::string mangled_name = "";
+  rmw_qos_profile_t actual_qos_profile;
 
   // memory allocations for namespacing
   char * request_topic_str = nullptr;
@@ -102,16 +116,6 @@ rmw_create_service(
     goto fail;
   }
 
-  if (!get_datareader_qos(participant, *qos_profile, datareader_qos)) {
-    // error string was set within the function
-    goto fail;
-  }
-
-  if (!get_datawriter_qos(participant, *qos_profile, datawriter_qos)) {
-    // error string was set within the function
-    goto fail;
-  }
-
   // allocating memory for request topic and response topic strings
   if (!_process_service_name(
       service_name,
@@ -119,6 +123,16 @@ rmw_create_service(
       &request_topic_str,
       &response_topic_str))
   {
+    goto fail;
+  }
+
+  if (!get_datareader_qos(participant, *qos_profile, request_topic_str, datareader_qos)) {
+    // error string was set within the function
+    goto fail;
+  }
+
+  if (!get_datawriter_qos(participant, *qos_profile, response_topic_str, datawriter_qos)) {
+    // error string was set within the function
     goto fail;
   }
 
@@ -164,7 +178,7 @@ rmw_create_service(
   dds_publisher = response_datawriter->get_publisher();
   status = participant->get_default_publisher_qos(publisher_qos);
   if (status != DDS::RETCODE_OK) {
-    RMW_SET_ERROR_MSG("failed to get default subscriber qos");
+    RMW_SET_ERROR_MSG("failed to get default publisher qos");
     goto fail;
   }
 
@@ -197,23 +211,35 @@ rmw_create_service(
   }
   memcpy(const_cast<char *>(service->service_name), service_name, strlen(service_name) + 1);
 
-  mangled_name =
-    request_datareader->get_topicdescription()->get_name();
+  mangled_name = request_datareader->get_topicdescription()->get_name();
+  status = request_datareader->get_qos(datareader_qos);
+  if (DDS::RETCODE_OK != status) {
+    RMW_SET_ERROR_MSG("request_datareader can't get data reader qos policies");
+    goto fail;
+  }
+  dds_qos_to_rmw_qos(datareader_qos, &actual_qos_profile);
   node_info->subscriber_listener->add_information(
     node_info->participant->get_instance_handle(),
     request_datareader->get_instance_handle(),
     mangled_name,
     request_datareader->get_topicdescription()->get_type_name(),
+    actual_qos_profile,
     EntityType::Subscriber);
   node_info->subscriber_listener->trigger_graph_guard_condition();
 
-  mangled_name =
-    response_datawriter->get_topic()->get_name();
+  mangled_name = response_datawriter->get_topic()->get_name();
+  status = response_datawriter->get_qos(datawriter_qos);
+  if (DDS::RETCODE_OK != status) {
+    RMW_SET_ERROR_MSG("response_datawriter can't get data writer qos policies");
+    goto fail;
+  }
+  dds_qos_to_rmw_qos(datawriter_qos, &actual_qos_profile);
   node_info->publisher_listener->add_information(
     node_info->participant->get_instance_handle(),
     response_datawriter->get_instance_handle(),
     mangled_name,
     response_datawriter->get_topic()->get_type_name(),
+    actual_qos_profile,
     EntityType::Publisher);
   node_info->publisher_listener->trigger_graph_guard_condition();
 
@@ -275,18 +301,18 @@ fail:
 rmw_ret_t
 rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 {
-  if (!node) {
-    RMW_SET_ERROR_MSG("node handle is null");
-    return RMW_RET_ERROR;
-  }
-  if (!service) {
-    RMW_SET_ERROR_MSG("service handle is null");
-    return RMW_RET_ERROR;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    service handle,
-    service->implementation_identifier, rti_connext_identifier,
-    return RMW_RET_ERROR)
+    node,
+    node->implementation_identifier,
+    rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    service,
+    service->implementation_identifier,
+    rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   auto result = RMW_RET_OK;
   ConnextStaticServiceInfo * service_info = static_cast<ConnextStaticServiceInfo *>(service->data);

@@ -21,7 +21,7 @@
 #include "rmw_connext_shared_cpp/ndds_include.hpp"
 
 #include "rmw_connext_cpp/identifier.hpp"
-#include "rmw_connext_cpp/connext_static_client_info.hpp"
+#include "connext_static_client_info.hpp"
 
 // Uncomment this to get extra console output about discovery.
 // This affects code in this file, but there is a similar variable in:
@@ -102,7 +102,7 @@ rmw_service_server_is_available(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node handle,
     node->implementation_identifier, rti_connext_identifier,
-    return RMW_RET_ERROR)
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
   if (!client) {
     RMW_SET_ERROR_MSG("client handle is null");
     return RMW_RET_ERROR;
@@ -110,7 +110,7 @@ rmw_service_server_is_available(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client handle,
     client->implementation_identifier, rti_connext_identifier,
-    return RMW_RET_ERROR)
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
 
   if (!is_available) {
     RMW_SET_ERROR_MSG("is_available is null");
@@ -171,9 +171,7 @@ rmw_service_server_is_available(
   fprintf(stderr, "response topic name: %s\n", response_topic_name);
   fprintf(stderr, "********\n");
   printf("Checking for service server:\n");
-  printf(" - %s: %zu\n",
-    request_topic_name,
-    number_of_request_subscribers);
+  printf(" - %s: %zu\n", request_topic_name, number_of_request_subscribers);
 #endif
   if (number_of_request_subscribers == 0) {
     // not ready
@@ -188,7 +186,8 @@ rmw_service_server_is_available(
     return ret;
   }
 #ifdef DISCOVERY_DEBUG_LOGGING
-  printf(" - %s: %zu\n",
+  printf(
+    " - %s: %zu\n",
     client_info->response_datareader_->get_topicdescription()->get_name(),
     number_of_response_publishers);
 #endif

@@ -21,6 +21,35 @@
 #include "rmw_connext_shared_cpp/types.hpp"
 
 rmw_ret_t
+__rmw_init_event(
+  const char * identifier,
+  rmw_event_t * rmw_event,
+  const char * topic_endpoint_impl_identifier,
+  void * data,
+  rmw_event_type_t event_type)
+{
+  RMW_CHECK_ARGUMENT_FOR_NULL(identifier, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_event, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_endpoint_impl_identifier, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    topic endpoint,
+    topic_endpoint_impl_identifier,
+    identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  if (!is_event_supported(event_type)) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("provided event_type is not supported by %s", identifier);
+    return RMW_RET_UNSUPPORTED;
+  }
+
+  rmw_event->implementation_identifier = topic_endpoint_impl_identifier;
+  rmw_event->data = data;
+  rmw_event->event_type = event_type;
+
+  return RMW_RET_OK;
+}
+
+rmw_ret_t
 __rmw_take_event(
   const char * implementation_identifier,
   const rmw_event_t * event_handle,
@@ -42,9 +71,6 @@ __rmw_take_event(
 
   // check if we support the input event type
   if (is_event_supported(event_handle->event_type)) {
-    // lookup status mask from rmw_event_type
-    DDS_StatusKind status_kind = get_status_kind_from_rmw(event_handle->event_type);
-
     // cast the event_handle to the appropriate type to get the appropriate
     // status from the handle
     // CustomConnextPublisher and CustomConnextSubscriber should implement this interface
@@ -53,7 +79,7 @@ __rmw_take_event(
 
     // call get status with the appropriate mask
     // get_status should fill the event with the appropriate status information
-    ret_code = custom_event_info->get_status(status_kind, event_info);
+    ret_code = custom_event_info->get_status(event_handle->event_type, event_info);
   } else {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("event %d not supported", event_handle->event_type);
   }

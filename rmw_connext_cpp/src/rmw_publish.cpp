@@ -17,9 +17,10 @@
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 #include "rmw/types.h"
+#include "rmw/impl/cpp/macros.hpp"
 
-#include "rmw_connext_cpp/connext_static_publisher_info.hpp"
 #include "rmw_connext_cpp/identifier.hpp"
+#include "connext_static_publisher_info.hpp"
 
 // include patched generated code from the build folder
 #include "connext_static_serialized_dataSupport.h"
@@ -43,7 +44,7 @@ publish(DDS::DataWriter * dds_data_writer, const rcutils_uint8_array_t * cdr_str
   DDS::ReturnCode_t status = DDS::RETCODE_ERROR;
 
   instance->serialized_data.maximum(0);
-  if (cdr_stream->buffer_length > (std::numeric_limits<DDS_Long>::max)()) {
+  if (cdr_stream->buffer_length > static_cast<size_t>((std::numeric_limits<DDS_Long>::max)())) {
     RMW_SET_ERROR_MSG("cdr_stream->buffer_length unexpectedly larger than DDS_Long's max value");
     return false;
   }
@@ -79,18 +80,15 @@ rmw_publish(
   rmw_publisher_allocation_t * allocation)
 {
   (void) allocation;
-  if (!publisher) {
-    RMW_SET_ERROR_MSG("publisher handle is null");
-    return RMW_RET_ERROR;
-  }
-  if (publisher->implementation_identifier != rti_connext_identifier) {
-    RMW_SET_ERROR_MSG("publisher handle is not from this rmw implementation");
-    return RMW_RET_ERROR;
-  }
-  if (!ros_message) {
-    RMW_SET_ERROR_MSG("ros message handle is null");
-    return RMW_RET_ERROR;
-  }
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher, "publisher handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher, publisher->implementation_identifier, rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    ros_message, "ros message handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
 
   ConnextStaticPublisherInfo * publisher_info =
     static_cast<ConnextStaticPublisherInfo *>(publisher->data);
@@ -146,18 +144,15 @@ rmw_publish_serialized_message(
   rmw_publisher_allocation_t * allocation)
 {
   (void) allocation;
-  if (!publisher) {
-    RMW_SET_ERROR_MSG("publisher handle is null");
-    return RMW_RET_ERROR;
-  }
-  if (publisher->implementation_identifier != rti_connext_identifier) {
-    RMW_SET_ERROR_MSG("publisher handle is not from this rmw implementation");
-    return RMW_RET_ERROR;
-  }
-  if (!serialized_message) {
-    RMW_SET_ERROR_MSG("serialized message handle is null");
-    return RMW_RET_ERROR;
-  }
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher, "publisher handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher, publisher->implementation_identifier, rti_connext_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    serialized_message, "serialized message handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
 
   ConnextStaticPublisherInfo * publisher_info =
     static_cast<ConnextStaticPublisherInfo *>(publisher->data);

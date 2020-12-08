@@ -2,12 +2,127 @@
 Changelog for package rmw_connext_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.8.2 (2020-12-04)
+3.5.0 (2020-12-08)
 ------------------
-* Fix wrong error messages (`#458 <https://github.com/ros2/rmw_connext/issues/458>`_) (`#479 <https://github.com/ros2/rmw_connext/issues/479>`_)
-* Update maintainers (`#468 <https://github.com/ros2/rmw_connext/issues/468>`_) (`#471 <https://github.com/ros2/rmw_connext/issues/471>`_)
-* avoid using build time Connext library paths, determine them when downstream packages are built (`#385 <https://github.com/ros2/rmw_connext/issues/385>`_) (`#433 <https://github.com/ros2/rmw_connext/issues/433>`_)
-* Contributors: Alejandro Hernández Cordero, Dirk Thomas, Ivan Santiago Paunovic
+* typo fix for ConnextStaticSerializedDataSupport of subscription. (`#475 <https://github.com/ros2/rmw_connext/issues/475>`_)
+* Allow more flexible usage of XML QoS profiles (`#460 <https://github.com/ros2/rmw_connext/issues/460>`_)
+* Update maintainers (`#468 <https://github.com/ros2/rmw_connext/issues/468>`_)
+* Contributors: Alejandro Hernández Cordero, Ivan Santiago Paunovic, tomoya
+
+3.4.2 (2020-09-29)
+------------------
+* Return RMW_RET_UNSUPPORTED in rmw_get_serialized_message_size (`#467 <https://github.com/ros2/rmw_connext/issues/467>`_)
+* Returned RMW_RET_INCORRECT_RMW_IMPLEMENTATION in rmw_service_server_is_available (`#466 <https://github.com/ros2/rmw_connext/issues/466>`_)
+* Update service/client request/response API error returns (`#465 <https://github.com/ros2/rmw_connext/issues/465>`_)
+* Contributors: Alejandro Hernández Cordero, Jose Tomas Lorente
+
+3.4.1 (2020-09-26)
+------------------
+* Updated publisher/subscription allocation and wait set API return codes. (`#463 <https://github.com/ros2/rmw_connext/issues/463>`_)
+* Update service/client construction/destruction API return codes. (`#464 <https://github.com/ros2/rmw_connext/issues/464>`_)
+* Contributors: Alejandro Hernández Cordero, Michel Hidalgo
+
+3.4.0 (2020-09-23)
+------------------
+* Updated returns on rmw_take_serialized_with_info(). (`#462 <https://github.com/ros2/rmw_connext/issues/462>`_)
+* Update gid API return codes. (`#461 <https://github.com/ros2/rmw_connext/issues/461>`_)
+* Contributors: Jose Tomas Lorente, Michel Hidalgo
+
+3.3.0 (2020-09-18)
+------------------
+* Fix wrong error messages (`#458 <https://github.com/ros2/rmw_connext/issues/458>`_)
+* Update rmw_take_serialized() and rmw_take_with_error_info() error returns (`#456 <https://github.com/ros2/rmw_connext/issues/456>`_)
+* Update rmw_take() error returns  (`#454 <https://github.com/ros2/rmw_connext/issues/454>`_)
+* Update rmw_publish() error returns (`#452 <https://github.com/ros2/rmw_connext/issues/452>`_)
+* Update rmw_publish_serialized_message() error returns (`#453 <https://github.com/ros2/rmw_connext/issues/453>`_)
+* Contributors: Ivan Santiago Paunovic, Jose Tomas Lorente, Lobotuerk
+
+3.2.0 (2020-08-28)
+------------------
+* Ensure compliant matched pub/sub count API. (`#451 <https://github.com/ros2/rmw_connext/issues/451>`_)
+* Contributors: Michel Hidalgo
+
+3.1.0 (2020-08-06)
+------------------
+* Ensure compliant subscription API. (`#450 <https://github.com/ros2/rmw_connext/issues/450>`_)
+* Contributors: Michel Hidalgo
+
+3.0.0 (2020-08-03)
+------------------
+* Remove internal rmw_connext_cpp headers from public API. (`#447 <https://github.com/ros2/rmw_connext/issues/447>`_)
+  * Update rmw_connext_cpp after internal headers relocation.
+  * Relocate internal rmw_connext_cpp headers.
+* Decouple rmw_destroy_publisher() outcome from global RMW error state. (`#449 <https://github.com/ros2/rmw_connext/issues/449>`_)
+* Ensure compliant publisher API. (`#445 <https://github.com/ros2/rmw_connext/issues/445>`_)
+* Avoid leaking DDS::Topic objects. (`#444 <https://github.com/ros2/rmw_connext/issues/444>`_)
+* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
+
+2.2.0 (2020-07-22)
+------------------
+* Set context actual domain id (`#443 <https://github.com/ros2/rmw_connext/issues/443>`_)
+* Contributors: Ivan Santiago Paunovic
+
+2.1.0 (2020-07-20)
+------------------
+* Fix topic creation race condition (`#442 <https://github.com/ros2/rmw_connext/issues/442>`_)
+* Ensure compliant node construction/destruction API (`#439 <https://github.com/ros2/rmw_connext/issues/439>`_)
+* Improve error message when failing to create topic (`#441 <https://github.com/ros2/rmw_connext/issues/441>`_)
+* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
+
+2.0.0 (2020-07-08)
+------------------
+* Remove domain_id and localhost_only from node API (`#438 <https://github.com/ros2/rmw_connext/issues/438>`_)
+* Amend rmw_init() implementation: require enclave. (`#437 <https://github.com/ros2/rmw_connext/issues/437>`_)
+* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
+
+1.2.0 (2020-06-29)
+------------------
+* Ensure compliant init/shutdown API implementation. (`#432 <https://github.com/ros2/rmw_connext/issues/432>`_)
+* Ensure compliant init options API implementations. (`#431 <https://github.com/ros2/rmw_connext/issues/431>`_)
+* Finalize context if and only if it's shutdown (`#428 <https://github.com/ros2/rmw_connext/issues/428>`_)
+* Contributors: Michel Hidalgo
+
+1.1.0 (2020-06-18)
+------------------
+* Add support to RMW_EVENT_MESSAGE_LOST (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Allow RMW events to map to more than one DDS event (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Revert the idl_pp code to try up to 10 times. (`#425 <https://github.com/ros2/rmw_connext/issues/425>`_)
+* Contributors: Chris Lalancette, Ivan Santiago Paunovic
+
+1.0.0 (2020-05-12)
+------------------
+* Remove MANUAL_BY_NODE liveliness API (`#423 <https://github.com/ros2/rmw_connext/issues/423>`_)
+* Contributors: Ivan Santiago Paunovic
+
+0.9.1 (2020-05-08)
+------------------
+* Correct rmw_take() return value. (`#419 <https://github.com/ros2/rmw_connext/issues/419>`_)
+* Switch to always using rtiddsgen (not the server). (`#421 <https://github.com/ros2/rmw_connext/issues/421>`_)
+* Cast to size_t before doing comparison (`#420 <https://github.com/ros2/rmw_connext/issues/420>`_)
+* Cast size_t to DDS_Long explicitly. (`#416 <https://github.com/ros2/rmw_connext/issues/416>`_)
+* set connext buffer capacity (`#417 <https://github.com/ros2/rmw_connext/issues/417>`_)
+* Retry calling the idl_pp up to 10 times. (`#415 <https://github.com/ros2/rmw_connext/issues/415>`_)
+* Contributors: Chris Lalancette, Karsten Knese, Michel Hidalgo, Shane Loretz
+
+0.9.0 (2020-04-25)
+------------------
+* Rename rosidl_message_bounds_t (`#413 <https://github.com/ros2/rmw_connext/issues/413>`_)
+* More verbose error output when apply_patch.py fails (`#414 <https://github.com/ros2/rmw_connext/issues/414>`_)
+* Switch take_response and take_request to rmw_service_info_t (`#412 <https://github.com/ros2/rmw_connext/issues/412>`_)
+* Add support for taking a sequence of messages (`#408 <https://github.com/ros2/rmw_connext/issues/408>`_)
+* Fix CMake warning about using uninitialized variables (`#411 <https://github.com/ros2/rmw_connext/issues/411>`_)
+* security-context -> enclave (`#407 <https://github.com/ros2/rmw_connext/issues/407>`_)
+* Replace rosidl_generator_x for rosidl_runtime_x (`#399 <https://github.com/ros2/rmw_connext/issues/399>`_)
+* API changes to sync with one Participant per Context change in rmw_fastrtps (`#392 <https://github.com/ros2/rmw_connext/issues/392>`_)
+* Support for ON_REQUESTED_INCOMPATIBLE_QOS and ON_OFFERED_INCOMPATIBLE_QOS events (`#398 <https://github.com/ros2/rmw_connext/issues/398>`_)
+* Add rmw\_*_event_init() functions (`#397 <https://github.com/ros2/rmw_connext/issues/397>`_)
+* Fix build warnings due to -Wsign-compare with GCC 9 (`#396 <https://github.com/ros2/rmw_connext/issues/396>`_)
+* Implement the rmw_get_publishers/subscriptions_info_by_topic() methods (`#391 <https://github.com/ros2/rmw_connext/issues/391>`_)
+* Finding rmw_connext_shared_cpp must succeed, only rmw_connext_cpp can signal not-found when Connext is not available (`#389 <https://github.com/ros2/rmw_connext/issues/389>`_)
+* Code style only: wrap after open parenthesis if not in one line (`#387 <https://github.com/ros2/rmw_connext/issues/387>`_)
+* Avoid using build time Connext library paths, determine them when downstream packages are built (`#385 <https://github.com/ros2/rmw_connext/issues/385>`_)
+* Stubs for rmw_get_publishers_info_by_topic and rmw_get_subscriptions_info_by_topic  (`#377 <https://github.com/ros2/rmw_connext/issues/377>`_)
+* Contributors: Alejandro Hernández Cordero, Dirk Thomas, Ingo Lütkebohle, Ivan Santiago Paunovic, Jacob Perron, Jaison Titus, Miaofei Mei, Michael Carroll, Mikael Arguedas
 
 0.8.1 (2019-10-23)
 ------------------

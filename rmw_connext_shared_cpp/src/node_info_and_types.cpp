@@ -34,6 +34,8 @@
 #include "rmw/impl/cpp/key_value.hpp"
 #include "rmw/names_and_types.h"
 #include "rmw/rmw.h"
+#include "rmw/validate_node_name.h"
+#include "rmw/validate_namespace.h"
 
 #include "rmw_connext_shared_cpp/node_info_and_types.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
@@ -45,18 +47,18 @@
  * Check to see if a node name and namespace match the user data QoS policy
  * of a node.
  *
- * @param user_data_qos to inspect
- * @param node_name to match
- * @param node_namespace to match
- * @return true if match
+ * \param user_data_qos to inspect
+ * \param node_name to match
+ * \param node_namespace to match
+ * \return true if match
  */
 bool
 __is_node_match(
-  DDS::UserDataQosPolicy & user_data_qos,
+  const DDS::UserDataQosPolicy & user_data_qos,
   const char * node_name,
   const char * node_namespace)
 {
-  uint8_t * buf = user_data_qos.value.get_contiguous_buffer();
+  const uint8_t * buf = user_data_qos.value.get_contiguous_buffer();
   if (buf) {
     std::vector<uint8_t> kv(buf, buf + user_data_qos.value.length());
     auto map = rmw::impl::cpp::parse_key_value(kv);
@@ -76,12 +78,12 @@ __is_node_match(
  * Get a DDS GUID key for the discovered participant which matches the
  * node_name and node_namepace supplied.
  *
- * @param node_info to discover nodes
- * @param node_name to match
- * @param node_namespace to match
- * @param key [out] guid key that matches the node name and namespace
+ * \param node_info to discover nodes
+ * \param node_name to match
+ * \param node_namespace to match
+ * \param key [out] guid key that matches the node name and namespace
  *
- * @return RMW_RET_OK if success, ERROR otherwise
+ * \return RMW_RET_OK if success, ERROR otherwise
  */
 rmw_ret_t
 __get_key(
@@ -110,21 +112,9 @@ __get_key(
     DDS::ParticipantBuiltinTopicData pbtd;
     auto dds_ret = participant->get_discovered_participant_data(pbtd, handles[i]);
     if (dds_ret == DDS::RETCODE_OK) {
-      uint8_t * buf = pbtd.user_data.value.get_contiguous_buffer();
-      if (buf) {
-        std::vector<uint8_t> kv(buf, buf + pbtd.user_data.value.length());
-        auto map = rmw::impl::cpp::parse_key_value(kv);
-        auto name_found = map.find("name");
-        auto ns_found = map.find("namespace");
-
-        if (name_found != map.end() && ns_found != map.end()) {
-          std::string name(name_found->second.begin(), name_found->second.end());
-          std::string ns(ns_found->second.begin(), ns_found->second.end());
-          if ((name == node_name) && (ns == node_namespace)) {
-            DDS_BuiltinTopicKey_to_GUID(&key, pbtd.key);
-            return RMW_RET_OK;
-          }
-        }
+      if (__is_node_match(pbtd.user_data, node_name, node_namespace)) {
+        DDS_BuiltinTopicKey_to_GUID(&key, pbtd.key);
+        return RMW_RET_OK;
       }
     } else {
       RMW_SET_ERROR_MSG("unable to fetch discovered participants data.");
@@ -144,12 +134,24 @@ validate_names_and_namespace(
   const char * node_name,
   const char * node_namespace)
 {
-  if (!node_name) {
-    RMW_SET_ERROR_MSG("null node name");
+  int validation_result = RMW_NODE_NAME_VALID;
+  rmw_ret_t ret = rmw_validate_node_name(node_name, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+  if (RMW_NODE_NAME_VALID != validation_result) {
+    const char * reason = rmw_node_name_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("node_name argument is invalid: %s", reason);
     return RMW_RET_INVALID_ARGUMENT;
   }
-  if (!node_namespace) {
-    RMW_SET_ERROR_MSG("null node namespace");
+  validation_result = RMW_NAMESPACE_VALID;
+  ret = rmw_validate_namespace(node_namespace, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+  if (RMW_NAMESPACE_VALID != validation_result) {
+    const char * reason = rmw_namespace_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("node_namespace argument is invalid: %s", reason);
     return RMW_RET_INVALID_ARGUMENT;
   }
   return RMW_RET_OK;
@@ -165,29 +167,24 @@ get_subscriber_names_and_types_by_node(
   bool no_demangle,
   rmw_names_and_types_t * topic_names_and_types)
 {
-  if (!node) {
-    RMW_SET_ERROR_MSG("null node handle");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-  if (node->implementation_identifier != implementation_identifier) {
-    RMW_SET_ERROR_MSG("node handle is not from this rmw implementation");
-    return RMW_RET_ERROR;
-  }
-
-  rmw_ret_t ret = rmw_names_and_types_check_zero(topic_names_and_types);
-  if (ret != RMW_RET_OK) {
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    implementation_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "allocator argument is invalid", return RMW_RET_INVALID_ARGUMENT);
+  rmw_ret_t ret = validate_names_and_namespace(node_name, node_namespace);
+  if (RMW_RET_OK != ret) {
     return ret;
   }
-  ret = validate_names_and_namespace(node_name, node_namespace);
-  if (ret != RMW_RET_OK) {
+  ret = rmw_names_and_types_check_zero(topic_names_and_types);
+  if (RMW_RET_OK != ret) {
     return ret;
   }
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
-  if (!node_info) {
-    RMW_SET_ERROR_MSG("node info handle is null");
-    return RMW_RET_ERROR;
-  }
 
   DDS::GUID_t key;
   auto get_guid_err = __get_key(node_info, node_name, node_namespace, key);
@@ -212,29 +209,24 @@ get_publisher_names_and_types_by_node(
   bool no_demangle,
   rmw_names_and_types_t * topic_names_and_types)
 {
-  if (!node) {
-    RMW_SET_ERROR_MSG("null node handle");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-  if (node->implementation_identifier != implementation_identifier) {
-    RMW_SET_ERROR_MSG("node handle is not from this rmw implementation");
-    return RMW_RET_ERROR;
-  }
-
-  rmw_ret_t ret = rmw_names_and_types_check_zero(topic_names_and_types);
-  if (ret != RMW_RET_OK) {
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    implementation_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "allocator argument is invalid", return RMW_RET_INVALID_ARGUMENT);
+  rmw_ret_t ret = validate_names_and_namespace(node_name, node_namespace);
+  if (RMW_RET_OK != ret) {
     return ret;
   }
-  ret = validate_names_and_namespace(node_name, node_namespace);
-  if (ret != RMW_RET_OK) {
+  ret = rmw_names_and_types_check_zero(topic_names_and_types);
+  if (RMW_RET_OK != ret) {
     return ret;
   }
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
-  if (!node_info) {
-    RMW_SET_ERROR_MSG("node info handle is null");
-    return RMW_RET_ERROR;
-  }
 
   DDS::GUID_t key;
   auto get_guid_err = __get_key(node_info, node_name, node_namespace, key);
@@ -260,25 +252,24 @@ __get_service_names_and_types_by_node(
   rmw_names_and_types_t * service_names_and_types,
   const char * suffix)
 {
-  if (!node) {
-    RMW_SET_ERROR_MSG("null node handle");
-    return RMW_RET_INVALID_ARGUMENT;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    implementation_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "allocator argument is invalid", return RMW_RET_INVALID_ARGUMENT);
+  rmw_ret_t ret = validate_names_and_namespace(node_name, node_namespace);
+  if (RMW_RET_OK != ret) {
+    return ret;
   }
-  if (node->implementation_identifier != implementation_identifier) {
-    RMW_SET_ERROR_MSG("node handle is not from this rmw implementation");
-    return RMW_RET_ERROR;
-  }
-
-  rmw_ret_t ret = rmw_names_and_types_check_zero(service_names_and_types);
-  if (ret != RMW_RET_OK) {
+  ret = rmw_names_and_types_check_zero(service_names_and_types);
+  if (RMW_RET_OK != ret) {
     return ret;
   }
 
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
-  if (!node_info) {
-    RMW_SET_ERROR_MSG("node info handle is null");
-    return RMW_RET_ERROR;
-  }
 
   DDS::GUID_t key;
   auto get_guid_err = __get_key(node_info, node_name, node_namespace, key);
@@ -290,13 +281,7 @@ __get_service_names_and_types_by_node(
   std::map<std::string, std::set<std::string>> services;
   node_info->subscriber_listener->fill_service_names_and_types_by_guid(services, key, suffix);
 
-  rmw_ret_t rmw_ret =
-    copy_services_to_names_and_types(services, allocator, service_names_and_types);
-  if (rmw_ret != RMW_RET_OK) {
-    return rmw_ret;
-  }
-
-  return RMW_RET_OK;
+  return copy_services_to_names_and_types(services, allocator, service_names_and_types);
 }
 
 rmw_ret_t

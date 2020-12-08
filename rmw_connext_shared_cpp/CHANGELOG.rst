@@ -2,11 +2,100 @@
 Changelog for package rmw_connext_shared_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.8.2 (2020-12-04)
+3.5.0 (2020-12-08)
 ------------------
-* Update maintainers (`#468 <https://github.com/ros2/rmw_connext/issues/468>`_) (`#471 <https://github.com/ros2/rmw_connext/issues/471>`_)
-* avoid using build time Connext library paths, determine them when downstream packages are built (`#385 <https://github.com/ros2/rmw_connext/issues/385>`_) (`#433 <https://github.com/ros2/rmw_connext/issues/433>`_)
-* Contributors: Alejandro Hernández Cordero, Dirk Thomas
+* Revert "Use new time_utils function to limit rmw_time_t values to 32-bits (`#477 <https://github.com/ros2/rmw_connext/issues/477>`_)" (`#482 <https://github.com/ros2/rmw_connext/issues/482>`_)
+* Reduce the shutdown_cleanup_period. (`#473 <https://github.com/ros2/rmw_connext/issues/473>`_)
+* Use new time_utils function to limit rmw_time_t values to 32-bits (`#477 <https://github.com/ros2/rmw_connext/issues/477>`_)
+* Allow more flexible usage of XML QoS profiles (`#460 <https://github.com/ros2/rmw_connext/issues/460>`_)
+* Update maintainers (`#468 <https://github.com/ros2/rmw_connext/issues/468>`_)
+* Contributors: Alejandro Hernández Cordero, Chris Lalancette, Ivan Santiago Paunovic, Michael Jeronimo
+
+3.4.2 (2020-09-29)
+------------------
+
+3.4.1 (2020-09-26)
+------------------
+* Updated publisher/subscription allocation and wait set API return codes. (`#463 <https://github.com/ros2/rmw_connext/issues/463>`_)
+* Contributors: Alejandro Hernández Cordero
+
+3.4.0 (2020-09-23)
+------------------
+* Update graph API return codes. (`#459 <https://github.com/ros2/rmw_connext/issues/459>`_)
+* Contributors: Michel Hidalgo
+
+3.3.0 (2020-09-18)
+------------------
+
+3.2.0 (2020-08-28)
+------------------
+
+3.1.0 (2020-08-06)
+------------------
+
+3.0.0 (2020-08-03)
+------------------
+* Ensure compliant publisher API. (`#445 <https://github.com/ros2/rmw_connext/issues/445>`_)
+* Avoid leaking DDS::Topic objects. (`#444 <https://github.com/ros2/rmw_connext/issues/444>`_)
+* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
+
+2.2.0 (2020-07-22)
+------------------
+* Set context actual domain id (`#443 <https://github.com/ros2/rmw_connext/issues/443>`_)
+* Contributors: Ivan Santiago Paunovic
+
+2.1.0 (2020-07-20)
+------------------
+* Fix topic creation race condition (`#442 <https://github.com/ros2/rmw_connext/issues/442>`_)
+* Ensure compliant node construction/destruction API (`#439 <https://github.com/ros2/rmw_connext/issues/439>`_)
+* Contributors: Ivan Santiago Paunovic, Michel Hidalgo
+
+2.0.0 (2020-07-08)
+------------------
+* Remove domain_id and localhost_only from node API (`#438 <https://github.com/ros2/rmw_connext/issues/438>`_)
+* Contributors: Ivan Santiago Paunovic
+
+1.2.0 (2020-06-29)
+------------------
+* Handle RMW_DEFAULT_DOMAIN_ID. (`#427 <https://github.com/ros2/rmw_connext/issues/427>`_)
+* Contributors: Michel Hidalgo
+
+1.1.0 (2020-06-18)
+------------------
+* Add support to RMW_EVENT_MESSAGE_LOST (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Allow RMW events to map to more than one DDS event (`#424 <https://github.com/ros2/rmw_connext/issues/424>`_)
+* Contributors: Ivan Santiago Paunovic
+
+1.0.0 (2020-05-12)
+------------------
+* Remove MANUAL_BY_NODE liveliness API (`#423 <https://github.com/ros2/rmw_connext/issues/423>`_)
+* Contributors: Ivan Santiago Paunovic
+
+0.9.1 (2020-05-08)
+------------------
+* Initialize RMW qos profiles to rmw_qos_profile_unknown. (`#422 <https://github.com/ros2/rmw_connext/issues/422>`_)
+* Contributors: Michel Hidalgo
+
+0.9.0 (2020-04-25)
+------------------
+* Add basic support for security logging plugin (`#404 <https://github.com/ros2/rmw_connext/issues/404>`_)
+* security-context -> enclave (`#407 <https://github.com/ros2/rmw_connext/issues/407>`_)
+* Do not force 510 locators compatibility mode (`#406 <https://github.com/ros2/rmw_connext/issues/406>`_)
+* API changes to sync with one Participant per Context change in rmw_fastrtps (`#392 <https://github.com/ros2/rmw_connext/issues/392>`_)
+* Correct error message when using a non supported event (`#400 <https://github.com/ros2/rmw_connext/issues/400>`_)
+* Support for ON_REQUESTED_INCOMPATIBLE_QOS and ON_OFFERED_INCOMPATIBLE_QOS events (`#398 <https://github.com/ros2/rmw_connext/issues/398>`_)
+* Increase the max_objects_per_thread (`#394 <https://github.com/ros2/rmw_connext/issues/394>`_)
+  Increased to 8192, which should allow something like 60 - 70 participants.
+* Add rmw\_*_event_init() functions (`#397 <https://github.com/ros2/rmw_connext/issues/397>`_)
+* Fix build warnings due to -Wsign-compare with GCC 9 (`#396 <https://github.com/ros2/rmw_connext/issues/396>`_)
+* Don't use RTPS Participant name as node name (`#393 <https://github.com/ros2/rmw_connext/issues/393>`_)
+* Implement the rmw_get_publishers/subscriptions_info_by_topic() methods (`#391 <https://github.com/ros2/rmw_connext/issues/391>`_)
+* Finding rmw_connext_shared_cpp must succeed, only rmw_connext_cpp can signal not-found when Connext is not available (`#389 <https://github.com/ros2/rmw_connext/issues/389>`_)
+* Code style only: wrap after open parenthesis if not in one line (`#387 <https://github.com/ros2/rmw_connext/issues/387>`_)
+* Avoid using build time Connext library paths, determine them when downstream packages are built (`#385 <https://github.com/ros2/rmw_connext/issues/385>`_)
+* Stubs for rmw_get_publishers_info_by_topic and rmw_get_subscriptions_info_by_topic  (`#377 <https://github.com/ros2/rmw_connext/issues/377>`_)
+* Filtering empty node names and namespaces (`#362 <https://github.com/ros2/rmw_connext/issues/362>`_)
+* Contributors: CaptainTrunky, Chris Lalancette, Dirk Thomas, Ivan Santiago Paunovic, Jacob Perron, Jaison Titus, Kyle Fazzari, Miaofei Mei, Mikael Arguedas
 
 0.8.1 (2019-10-23)
 ------------------

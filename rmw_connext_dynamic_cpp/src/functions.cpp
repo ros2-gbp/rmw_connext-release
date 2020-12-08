@@ -51,14 +51,16 @@
 #include "rmw/allocators.h"
 #include "rmw/error_handling.h"
 #include "rmw/get_service_names_and_types.h"
+#include "rmw/get_topic_endpoint_info.h"
 #include "rmw/get_topic_names_and_types.h"
 #include "rmw/init.h"
 #include "rmw/rmw.h"
+#include "rmw/topic_endpoint_info_array.h"
 #include "rmw/types.h"
 
-#include "rosidl_generator_c/primitives_sequence_functions.h"
-#include "rosidl_generator_c/string.h"
-#include "rosidl_generator_c/string_functions.h"
+#include "rosidl_runtime_c/primitives_sequence_functions.h"
+#include "rosidl_runtime_c/string.h"
+#include "rosidl_runtime_c/string_functions.h"
 
 #include "rmw/impl/cpp/macros.hpp"
 
@@ -74,7 +76,9 @@
 #include "rosidl_typesupport_introspection_c/service_introspection.h"
 #include "rosidl_typesupport_introspection_c/visibility_control.h"
 
+#include "rmw_connext_shared_cpp/create_topic.hpp"
 #include "rmw_connext_shared_cpp/shared_functions.hpp"
+#include "rmw_connext_shared_cpp/topic_endpoint_info.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "./macros.hpp"
@@ -298,7 +302,7 @@ rmw_create_node(
   const char * name,
   const char * namespace_,
   size_t domain_id,
-  const rmw_node_security_options_t * security_options,
+  const rmw_security_options_t * security_options,
   bool localhost_only)
 {
   return create_node(
@@ -398,7 +402,6 @@ rmw_create_publisher(
   DDS_PublisherQos publisher_qos;
   DDSPublisher * dds_publisher = nullptr;
   DDSTopic * topic = nullptr;
-  DDSTopicDescription * topic_description = nullptr;
   DDS_DataWriterQos datawriter_qos;
   DDSDataWriter * topic_writer = nullptr;
   DDSDynamicDataWriter * dynamic_writer = nullptr;
@@ -491,28 +494,10 @@ rmw_create_publisher(
     goto fail;
   }
 
-  topic_description = participant->lookup_topicdescription(topic_str);
-  if (!topic_description) {
-    DDS_TopicQos default_topic_qos;
-    status = participant->get_default_topic_qos(default_topic_qos);
-    if (status != DDS_RETCODE_OK) {
-      RMW_SET_ERROR_MSG("failed to get default topic qos");
-      goto fail;
-    }
-
-    topic = participant->create_topic(
-      topic_str, type_name.c_str(), default_topic_qos, NULL, DDS_STATUS_MASK_NONE);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to create topic");
-      goto fail;
-    }
-  } else {
-    DDS_Duration_t timeout = DDS_Duration_t::from_seconds(0);
-    topic = participant->find_topic(topic_str, timeout);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to find topic");
-      goto fail;
-    }
+  topic = rmw_connext_shared_cpp::create_topic(node, topic_name, topic_str, type_name.c_str());
+  if (!topic) {
+    // error already set
+    goto fail;
   }
 
   if (!get_datawriter_qos(participant, *qos_profile, datawriter_qos)) {
@@ -1065,7 +1050,6 @@ rmw_create_subscription(
   DDS_SubscriberQos subscriber_qos;
   DDSSubscriber * dds_subscriber = nullptr;
   DDSTopic * topic;
-  DDSTopicDescription * topic_description = nullptr;
   DDSDataReader * topic_reader = nullptr;
   DDSReadCondition * read_condition = nullptr;
   DDSDynamicDataReader * dynamic_reader = nullptr;
@@ -1122,28 +1106,10 @@ rmw_create_subscription(
     goto fail;
   }
 
-  topic_description = participant->lookup_topicdescription(topic_name);
-  if (!topic_description) {
-    DDS_TopicQos default_topic_qos;
-    status = participant->get_default_topic_qos(default_topic_qos);
-    if (status != DDS_RETCODE_OK) {
-      RMW_SET_ERROR_MSG("failed to get default topic qos");
-      goto fail;
-    }
-
-    topic = participant->create_topic(
-      topic_name, type_name.c_str(), default_topic_qos, NULL, DDS_STATUS_MASK_NONE);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to create topic");
-      goto fail;
-    }
-  } else {
-    DDS_Duration_t timeout = DDS_Duration_t::from_seconds(0);
-    topic = participant->find_topic(topic_name, timeout);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to find topic");
-      goto fail;
-    }
+  topic = rmw_connext_shared_cpp::create_topic(node, topic_name, topic_str, type_name.c_str());
+  if (!topic) {
+    // error already set
+    goto fail;
   }
 
   if (!get_datareader_qos(participant, *qos_profile, datareader_qos)) {
@@ -2705,6 +2671,28 @@ rmw_count_subscribers(
 }
 
 rmw_ret_t
+rmw_get_publishers_info_by_topic(
+    const rmw_node_t * node,
+    rcutils_allocator_t * allocator,
+    const char * topic_name,
+    bool no_mangle,
+    rmw_topic_endpoint_info_array_t * publishers_info)
+{
+  return get_publishers_info_by_topic(rti_connext_dynamic_identifier, node, allocator, topic_name, no_mangle, publishers_info);
+}
+
+rmw_ret_t
+rmw_get_subscriptions_info_by_topic(
+    const rmw_node_t * node,
+    rcutils_allocator_t * allocator,
+    const char * topic_name,
+    bool no_mangle,
+    rmw_topic_endpoint_info_array_t * subscriptions_info)
+{
+  return get_subscriptions_info_by_topic(rti_connext_dynamic_identifier, node, allocator, topic_name, no_mangle, subscriptions_info);
+}
+
+rmw_ret_t
 rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 {
   if (!publisher) {
@@ -2805,7 +2793,7 @@ rmw_service_server_is_available(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node handle,
     node->implementation_identifier, rti_connext_dynamic_identifier,
-    return RMW_RET_ERROR)
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
   if (!client) {
     RMW_SET_ERROR_MSG("client handle is null");
     return RMW_RET_ERROR;
@@ -2813,7 +2801,7 @@ rmw_service_server_is_available(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client handle,
     client->implementation_identifier, rti_connext_dynamic_identifier,
-    return RMW_RET_ERROR)
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
 
   if (!is_available) {
     RMW_SET_ERROR_MSG("is_available is null");
