@@ -35,9 +35,7 @@ create_node(
   const char * implementation_identifier,
   rmw_context_t * context,
   const char * name,
-  const char * namespace_,
-  size_t domain_id,
-  bool localhost_only)
+  const char * namespace_)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(context, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -90,7 +88,7 @@ create_node(
     return NULL;
   }
 
-  if (localhost_only) {
+  if (context->options.localhost_only == RMW_LOCALHOST_ONLY_ENABLED) {
     status = DDS::PropertyQosPolicyHelper::add_property(
       participant_qos.property,
       "dds.transport.UDPv4.builtin.parent.allow_interfaces",
@@ -307,13 +305,19 @@ create_node(
     }
   }
 
-  // No custom handling of RMW_DEFAULT_DOMAIN_ID. Simply use a reasonable domain id.
-  participant = dpf_->create_participant(
-    static_cast<DDS::DomainId_t>(
-      domain_id != RMW_DEFAULT_DOMAIN_ID ? domain_id : 0u),
-    participant_qos,
-    NULL,
-    DDS::STATUS_MASK_NONE);
+  // In order to reduce the time to cleanup a participant (Node), we use the advice from
+  // https://community.rti.com/static/documentation/connext-dds/5.3.1/doc/api/connext_dds/api_cpp/structDDS__DomainParticipantQos.html
+  // and reduce the shutdown_cleanup_period to 50 milliseconds.
+  participant_qos.database.shutdown_cleanup_period.sec = 0;
+  participant_qos.database.shutdown_cleanup_period.nanosec = 50000000;
+
+  {
+    participant = dpf_->create_participant(
+      static_cast<DDS::DomainId_t>(context->actual_domain_id),
+      participant_qos,
+      NULL,
+      DDS::STATUS_MASK_NONE);
+  }
   if (!participant) {
     RMW_SET_ERROR_MSG("failed to create participant");
     goto fail;
@@ -479,7 +483,7 @@ destroy_node(const char * implementation_identifier, rmw_node_t * node)
   auto node_info = static_cast<ConnextNodeInfo *>(node->data);
   auto participant = static_cast<DDS::DomainParticipant *>(node_info->participant);
 
-  // This unregisters types and destroys topics which were shared between
+  // This unregisters types which were shared between
   // publishers and subscribers and could not be cleaned up in the delete functions.
   if (participant->delete_contained_entities() == DDS::RETCODE_OK) {
     DDS::DomainParticipantFactory * dpf_ = DDS::DomainParticipantFactory::get_instance();

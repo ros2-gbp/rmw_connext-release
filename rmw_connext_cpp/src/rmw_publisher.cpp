@@ -22,14 +22,15 @@
 
 #include "rmw/impl/cpp/macros.hpp"
 
+#include "rmw_connext_shared_cpp/create_topic.hpp"
 #include "rmw_connext_shared_cpp/qos.hpp"
 #include "rmw_connext_shared_cpp/types.hpp"
 
 #include "rmw_connext_cpp/identifier.hpp"
 
+#include "connext_static_publisher_info.hpp"
 #include "process_topic_and_service_names.hpp"
 #include "type_support_common.hpp"
-#include "rmw_connext_cpp/connext_static_publisher_info.hpp"
 
 // include patched generated code from the build folder
 #include "connext_static_serialized_dataSupport.h"
@@ -113,7 +114,6 @@ rmw_create_publisher(
   DDS::Publisher * dds_publisher = nullptr;
   DDS::DataWriter * topic_writer = nullptr;
   DDS::Topic * topic = nullptr;
-  DDS::TopicDescription * topic_description = nullptr;
   void * info_buf = nullptr;
   void * listener_buf = nullptr;
   ConnextPublisherListener * publisher_listener = nullptr;
@@ -183,37 +183,19 @@ rmw_create_publisher(
     goto fail;
   }
 
-  topic_description = participant->lookup_topicdescription(topic_str);
-  if (!topic_description) {
-    DDS::TopicQos default_topic_qos;
-    status = participant->get_default_topic_qos(default_topic_qos);
-    if (status != DDS::RETCODE_OK) {
-      RMW_SET_ERROR_MSG("failed to get default topic qos");
-      goto fail;
-    }
-
-    topic = participant->create_topic(
-      topic_str, type_name.c_str(),
-      default_topic_qos, NULL, DDS::STATUS_MASK_NONE);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to create topic");
-      goto fail;
-    }
-  } else {
-    DDS::Duration_t timeout = DDS::Duration_t::from_seconds(0);
-    topic = participant->find_topic(topic_str, timeout);
-    if (!topic) {
-      RMW_SET_ERROR_MSG("failed to find topic");
-      goto fail;
-    }
+  topic = rmw_connext_shared_cpp::create_topic(node, topic_name, topic_str, type_name.c_str());
+  if (!topic) {
+    // error already set
+    goto fail;
   }
-  DDS::String_free(topic_str);
-  topic_str = nullptr;
 
-  if (!get_datawriter_qos(participant, *qos_profile, datawriter_qos)) {
+  if (!get_datawriter_qos(participant, *qos_profile, topic_str, datawriter_qos)) {
     // error string was set within the function
     goto fail;
   }
+
+  DDS::String_free(topic_str);
+  topic_str = nullptr;
 
   topic_writer = dds_publisher->create_datawriter(
     topic, datawriter_qos, NULL, DDS::STATUS_MASK_NONE);
@@ -231,6 +213,7 @@ rmw_create_publisher(
   // Use a placement new to construct the ConnextStaticPublisherInfo in the preallocated buffer.
   RMW_TRY_PLACEMENT_NEW(publisher_info, info_buf, goto fail, ConnextStaticPublisherInfo, )
   info_buf = nullptr;  // Only free the publisher_info pointer; don't need the buf pointer anymore.
+  publisher_info->topic_ = topic;
   publisher_info->dds_publisher_ = dds_publisher;
   publisher_info->topic_writer_ = topic_writer;
   publisher_info->callbacks_ = callbacks;
@@ -309,6 +292,14 @@ fail:
     if (participant->delete_publisher(dds_publisher) != DDS::RETCODE_OK) {
       std::stringstream ss;
       ss << "leaking publisher while handling failure at " <<
+        __FILE__ << ":" << __LINE__ << '\n';
+      (std::cerr << ss.str()).flush();
+    }
+  }
+  if (topic) {
+    if (participant->delete_topic(topic) != DDS::RETCODE_OK) {
+      std::stringstream ss;
+      ss << "leaking topic while handling failure at " <<
         __FILE__ << ":" << __LINE__ << '\n';
       (std::cerr << ss.str()).flush();
     }
@@ -473,6 +464,15 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
       ret = RMW_RET_ERROR;
     } else {
       RMW_SAFE_FWRITE_TO_STDERR("failed to delete publisher\n");
+    }
+  }
+
+  if (participant->delete_topic(publisher_info->topic_) != DDS::RETCODE_OK) {
+    if (RMW_RET_OK == ret) {
+      RMW_SET_ERROR_MSG("failed to delete topic");
+      ret = RMW_RET_ERROR;
+    } else {
+      RMW_SAFE_FWRITE_TO_STDERR("failed to delete topic\n");
     }
   }
 

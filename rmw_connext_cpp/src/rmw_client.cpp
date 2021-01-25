@@ -23,8 +23,8 @@
 #include "rmw_connext_shared_cpp/types.hpp"
 #include "rmw_connext_shared_cpp/qos.hpp"
 
-#include "rmw_connext_cpp/connext_static_client_info.hpp"
 #include "rmw_connext_cpp/identifier.hpp"
+#include "connext_static_client_info.hpp"
 #include "process_topic_and_service_names.hpp"
 #include "type_support_common.hpp"
 
@@ -116,16 +116,6 @@ rmw_create_client(
     goto fail;
   }
 
-  if (!get_datareader_qos(participant, *qos_profile, datareader_qos)) {
-    // error string was set within the function
-    goto fail;
-  }
-
-  if (!get_datawriter_qos(participant, *qos_profile, datawriter_qos)) {
-    // error string was set within the function
-    goto fail;
-  }
-
   // allocating memory for request topic and response topic strings
   if (!_process_service_name(
       service_name,
@@ -133,6 +123,16 @@ rmw_create_client(
       &request_topic_str,
       &response_topic_str))
   {
+    goto fail;
+  }
+
+  if (!get_datareader_qos(participant, *qos_profile, response_topic_str, datareader_qos)) {
+    // error string was set within the function
+    goto fail;
+  }
+
+  if (!get_datawriter_qos(participant, *qos_profile, request_topic_str, datawriter_qos)) {
+    // error string was set within the function
     goto fail;
   }
 
