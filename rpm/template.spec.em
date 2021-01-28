@@ -1,3 +1,8 @@
+@{
+# Drop membership in rmw_implementation_packages group
+Provides = [p for p in Provides if p != 'ros-rolling-rmw-implementation-packages(member)']
+Supplements = [p for p in Supplements if p != 'ros-rolling-rmw-implementation-packages(all)']
+}@
 %bcond_without tests
 %bcond_without weak_deps
 
