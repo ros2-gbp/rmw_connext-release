@@ -140,8 +140,7 @@ tracks:
     - git-bloom-generate -y rosrpm --prefix release/:{ros_distro} :{ros_distro} -i
       :{release_inc} --os-name fedora
     - git-bloom-generate -y rosrpm --prefix release/:{ros_distro} :{ros_distro} -i
-      :{release_inc} --os-name rhel
-      --skip-keys rti-connext-dds-5.3.1
+      :{release_inc} --os-name rhel --skip-keys rti-connext-dds-5.3.1
     devel_branch: master
     last_version: 3.5.1
     name: rmw_connext
